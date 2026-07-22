@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class CharacterService:
-    MAX_PER_USER = 3
+    MAX_PER_USER = 10
     ALLOWED_BODY_TYPES = {"very_fat", "fat", "normal", "slim", "skinny"}
     ALLOWED_SKIN_TONES = {"fair", "light", "medium", "tan", "dark"}
     ALLOWED_BREAST_SIZES = {"flat", "small", "medium", "large", "huge"}
