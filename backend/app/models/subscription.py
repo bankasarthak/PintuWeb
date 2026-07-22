@@ -16,7 +16,7 @@ class SubscriptionPlan(Base):
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     price_inr: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    credits_per_month: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    credits_per_month: Mapped[float] = mapped_column(Numeric(10, 2, asdecimal=False), nullable=False, default=0)
     max_characters: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     output_storage_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     # Higher = better queue priority

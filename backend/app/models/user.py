@@ -21,7 +21,7 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
-    credits: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, default=10)
+    credits: Mapped[float] = mapped_column(Numeric(10, 2, asdecimal=False), nullable=False, default=10)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(

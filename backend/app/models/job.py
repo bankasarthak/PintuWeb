@@ -63,7 +63,7 @@ class Job(Base):
     output_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     # Credits
-    credits_charged: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    credits_charged: Mapped[float] = mapped_column(Numeric(10, 2, asdecimal=False), nullable=False, default=0)
 
     # Execution
     pod_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
