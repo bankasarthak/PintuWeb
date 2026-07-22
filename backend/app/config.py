@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # ── LLM (Ollama) ──────────────────────────────────────────────────────────
     OLLAMA_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "hf.co/HauhauCS/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive:Q4_K_M"
-    OLLAMA_CHAT_MAX_CONTEXT: int = 500
+    OLLAMA_CHAT_MAX_CONTEXT: int = 25
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]

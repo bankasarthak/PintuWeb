@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import random
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -130,10 +131,10 @@ class ChatService:
             ctx_result = await self._db.execute(
                 select(ChatMessage)
                 .where(ChatMessage.session_id == session.id)
-                .order_by(ChatMessage.created_at.asc())
+                .order_by(ChatMessage.created_at.desc())
                 .limit(self._settings.OLLAMA_CHAT_MAX_CONTEXT)
             )
-            context_messages = list(ctx_result.scalars().all())
+            context_messages = list(reversed(ctx_result.scalars().all()))
         except Exception:
             logger.exception("DB error fetching context messages for session %s", session_id)
             raise
@@ -143,11 +144,24 @@ class ChatService:
             {"role": msg.role, "content": msg.content} for msg in context_messages
         ]
 
+        logger.info(
+            "chat session=%s msgs=%s calling llm model=%s",
+            session_id,
+            len(messages),
+            self._settings.OLLAMA_MODEL,
+        )
+        t0 = time.monotonic()
         try:
             reply_content = await self._llm.complete(messages, options=CHAT_OPTIONS)
         except Exception:
             logger.exception("LLM error for session %s", session_id)
             raise
+        logger.info(
+            "chat session=%s llm reply len=%s elapsed=%.2fs",
+            session_id,
+            len(reply_content),
+            time.monotonic() - t0,
+        )
 
         assistant_msg = ChatMessage(
             id=uuid.uuid4(),
