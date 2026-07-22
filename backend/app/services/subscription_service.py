@@ -44,7 +44,7 @@ class SubscriptionService:
             raise NotFoundError(f"Plan '{plan_id}' not found")
         return plan
 
-    async def grant_monthly_credits(self, user_id: uuid.UUID) -> int:
+    async def grant_monthly_credits(self, user_id: uuid.UUID) -> float:
         """
         Grant the user their monthly credit allowance.
         Idempotent — keyed on the current month so it's safe to call multiple times.
@@ -52,7 +52,7 @@ class SubscriptionService:
         """
         plan = await self.get_active_plan(user_id)
         if plan.credits_per_month <= 0:
-            return 0
+            return 0.0
 
         now = datetime.now(timezone.utc)
         idem_key = f"monthly_grant:{user_id}:{now.year}:{now.month}"
@@ -65,7 +65,7 @@ class SubscriptionService:
             idempotency_key=idem_key,
         )
         # If idempotency_key already existed, txn.amount matches existing row
-        return txn.amount if txn.amount > 0 else 0
+        return txn.amount if txn.amount > 0 else 0.0
 
     async def upgrade_plan(
         self,

@@ -51,12 +51,12 @@ MOOD_CATALOG: dict[str, dict] = {
     "crying_makeup": {"label": "Crying Makeup", "lora": "running_makeup"},
 }
 
-_CREDIT_COSTS: dict[JobType, int] = {
-    JobType.i2i: 2,
-    JobType.i2v: 3,
-    JobType.i2i_custom: 2,
-    JobType.i2v_custom: 3,
-    JobType.random_ai: 1,
+_CREDIT_COSTS: dict[JobType, float] = {
+    JobType.i2i: 2.0,
+    JobType.i2v: 3.0,
+    JobType.i2i_custom: 2.0,
+    JobType.i2v_custom: 3.0,
+    JobType.random_ai: 1.0,
 }
 
 # Subscription plan → job queue priority (higher = processed first)

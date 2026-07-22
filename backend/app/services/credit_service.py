@@ -26,7 +26,7 @@ class CreditService:
     async def debit(
         self,
         user_id: uuid.UUID,
-        amount: int,
+        amount: float,
         description: str,
         job_id: uuid.UUID | None = None,
         idempotency_key: str | None = None,
@@ -68,7 +68,7 @@ class CreditService:
     async def refund(
         self,
         user_id: uuid.UUID,
-        amount: int,
+        amount: float,
         description: str,
         job_id: uuid.UUID | None = None,
         idempotency_key: str | None = None,
@@ -99,7 +99,7 @@ class CreditService:
     async def grant(
         self,
         user_id: uuid.UUID,
-        amount: int,
+        amount: float,
         description: str,
         idempotency_key: str | None = None,
     ) -> CreditTransaction:
@@ -125,7 +125,7 @@ class CreditService:
         await self._db.flush()
         return txn
 
-    async def balance(self, user_id: uuid.UUID) -> int:
+    async def balance(self, user_id: uuid.UUID) -> float:
         result = await self._db.execute(
             select(User.credits).where(User.id == user_id)
         )

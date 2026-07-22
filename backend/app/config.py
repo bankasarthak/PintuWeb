@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "hf.co/HauhauCS/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive:Q4_K_M"
     OLLAMA_CHAT_MAX_CONTEXT: int = 500
 
+    # ── Chat pricing ─────────────────────────────────────────────────────────
+    CHAT_CREDITS_PER_MESSAGE: float = 0.2
+
     # ── CORS ──────────────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import random
 import uuid
 from datetime import datetime, timezone
 
@@ -9,10 +8,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.models.chat import ChatMessage, ChatSession
 from app.models.character import Character
 from app.schemas.chat import SessionResponse
+from app.services.credit_service import CreditService
 from app.services.llm_client import CHAT_OPTIONS, LLMClient
 from app.services.system_prompt_builder import build_chat_prompt
 
@@ -104,6 +104,7 @@ class ChatService:
         character: Character,
     ) -> tuple[ChatSession, ChatMessage]:
         session = await self.get_session(user_id, session_id)
+        chat_cost = self._settings.CHAT_CREDITS_PER_MESSAGE
 
         user_msg = ChatMessage(
             id=uuid.uuid4(),
@@ -114,16 +115,26 @@ class ChatService:
         self._db.add(user_msg)
 
         session.message_count += 1
-        session.nudge_counter += 1
         session.last_active = datetime.now(timezone.utc)
-
-        nudge_threshold = random.randint(5, 7)
-        should_nudge = session.nudge_counter >= nudge_threshold
 
         try:
             await self._db.flush()
         except Exception:
             logger.exception("DB error saving user message for session %s", session_id)
+            raise
+
+        # Atomic debit before LLM call; refund if generation fails.
+        credit_svc = CreditService(self._db)
+        debit_idem = f"chat:{user_msg.id}"
+        try:
+            await credit_svc.debit(
+                user_id=user_id,
+                amount=chat_cost,
+                description=f"Chat message in session {session_id}",
+                idempotency_key=debit_idem,
+            )
+        except ConflictError as exc:
+            logger.warning("Chat debit failed for user %s: %s", user_id, exc)
             raise
 
         try:
@@ -138,7 +149,8 @@ class ChatService:
             logger.exception("DB error fetching context messages for session %s", session_id)
             raise
 
-        system_prompt = build_chat_prompt(character, nudge=should_nudge)
+        # Nudge is disabled for now.
+        system_prompt = build_chat_prompt(character, nudge=False)
         messages = [{"role": "system", "content": system_prompt}] + [
             {"role": msg.role, "content": msg.content} for msg in context_messages
         ]
@@ -147,6 +159,16 @@ class ChatService:
             reply_content = await self._llm.complete(messages, options=CHAT_OPTIONS)
         except Exception:
             logger.exception("LLM error for session %s", session_id)
+            # Refund the debit since the assistant did not reply.
+            try:
+                await credit_svc.refund(
+                    user_id=user_id,
+                    amount=chat_cost,
+                    description=f"Refund for failed chat reply in session {session_id}",
+                    idempotency_key=f"refund:{user_msg.id}",
+                )
+            except Exception:
+                logger.exception("Failed to refund chat debit for session %s", session_id)
             raise
 
         assistant_msg = ChatMessage(
@@ -157,9 +179,6 @@ class ChatService:
         )
         self._db.add(assistant_msg)
         session.message_count += 1
-
-        if should_nudge:
-            session.nudge_counter = 0
 
         try:
             await self._db.flush()

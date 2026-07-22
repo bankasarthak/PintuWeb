@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.exceptions import ConflictError
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
@@ -138,6 +139,11 @@ async def send_message(
             session=SessionResponse.model_validate(updated_session),
             message=MessageResponse.model_validate(assistant_msg),
         )
+    except ConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={"error": "insufficient_credits", "message": str(exc)},
+        ) from exc
     except HTTPException:
         raise
     except Exception:

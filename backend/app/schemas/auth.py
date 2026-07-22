@@ -45,7 +45,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     display_name: str | None
-    credits: int
+    credits: float
     created_at: datetime
 
     model_config = {"from_attributes": True}

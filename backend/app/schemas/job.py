@@ -25,7 +25,7 @@ class JobResponse(BaseModel):
     priority: int
     scene_id: str | None
     output_r2_key: str | None = None
-    credits_charged: int
+    credits_charged: float
     error_message: str | None = None
     attempt_count: int
     created_at: datetime

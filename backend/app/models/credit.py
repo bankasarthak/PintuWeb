@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,10 +17,10 @@ class CreditTransaction(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
 
     # Positive = credit, negative = debit
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     # debit | credit | refund | grant
     txn_type: Mapped[str] = mapped_column(String(20), nullable=False, default="debit")
-    balance_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    balance_after: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
 
     job_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)

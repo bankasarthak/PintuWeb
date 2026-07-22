@@ -48,7 +48,7 @@ async def get_current_user(
 get_current_active_user = Depends(get_current_user)
 
 
-def require_credits(n: int) -> Callable:
+def require_credits(n: float) -> Callable:
     async def _check(current_user: User = Depends(get_current_user)) -> User:
         if current_user.credits < n:
             raise ForbiddenError(
