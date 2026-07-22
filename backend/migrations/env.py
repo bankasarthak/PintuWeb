@@ -22,8 +22,11 @@ if config.config_file_name is not None:
 # Pull DATABASE_URL from env if not already set in alembic.ini
 database_url = os.environ.get("DATABASE_URL", "")
 if database_url:
-    # Alembic needs a synchronous URL; replace asyncpg driver
+    # Alembic needs a synchronous URL; replace asyncpg driver.
+    # psycopg2 expects sslmode=require, while asyncpg accepts ssl=require.
     sync_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
+    sync_url = sync_url.replace("?ssl=require", "?sslmode=require")
+    sync_url = sync_url.replace("&ssl=require", "&sslmode=require")
     config.set_main_option("sqlalchemy.url", sync_url)
 
 # Import all models so that Base.metadata is populated
