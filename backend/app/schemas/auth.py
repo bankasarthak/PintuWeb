@@ -41,6 +41,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class TelegramAuthRequest(BaseModel):
+    telegram_user_id: int
+    display_name: str | None = None
+
+
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: str

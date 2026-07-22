@@ -28,13 +28,6 @@ class CharacterCreate(BaseModel):
     breast_size: str
     personality_type: str = "sweet"
 
-    @field_validator("age")
-    @classmethod
-    def age_range(cls, v: int) -> int:
-        if v < 18 or v > 99:
-            raise ValueError("Age must be between 18 and 99")
-        return v
-
     @field_validator("body_type")
     @classmethod
     def validate_body_type(cls, v: str) -> str:
@@ -71,13 +64,6 @@ class CharacterUpdate(BaseModel):
     skin_tone: str | None = None
     breast_size: str | None = None
     personality_type: str | None = None
-
-    @field_validator("age")
-    @classmethod
-    def age_range(cls, v: int | None) -> int | None:
-        if v is not None and (v < 18 or v > 99):
-            raise ValueError("Age must be between 18 and 99")
-        return v
 
     @field_validator("body_type")
     @classmethod

@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import verify_service_token
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    TelegramAuthRequest,
     TokenResponse,
     UserResponse,
 )
@@ -52,6 +54,22 @@ async def login(
         logger.exception("Unexpected error during login")
         raise
 
+
+
+
+@router.post("/telegram", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+async def telegram_auth(
+    req: TelegramAuthRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_service_token),
+) -> TokenResponse:
+    """Bot-only: issue JWT for a Telegram user_id. No password."""
+    svc = AuthService(db)
+    _, access_token, refresh_token = await svc.issue_telegram_token(
+        req.telegram_user_id, req.display_name
+    )
+    await db.commit()
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 @router.post("/refresh", response_model=TokenResponse, status_code=status.HTTP_200_OK)
 async def refresh(

@@ -22,7 +22,9 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.models.job import Job, JobStatus, JobType
 from app.models.user import User
 from app.schemas.job import GenerateRequest
+from app.i2v_lora_catalog import I2V_LORA_FILES
 from app.services.credit_service import CreditService
+from app.services.i2v_prompt_enhancer import I2VPromptEnhancerService
 from app.services.llm_client import PROMPT_OPTIONS, LLMClient
 from app.services.storage_client import StorageClient
 from app.services.system_prompt_builder import build_prompt_generation_prompt
@@ -141,14 +143,21 @@ class GenerateService:
 
         # 3. Optional prompt enhancement
         enhanced_prompt: str | None = None
+        enhanced_lora: str | None = None
         if req.enhance_prompt and req.custom_prompt:
             try:
-                sys_prompt = build_prompt_generation_prompt(req.job_type.value)
-                messages = [
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": req.custom_prompt},
-                ]
-                enhanced_prompt = await self._llm.complete(messages, options=PROMPT_OPTIONS)
+                if req.job_type == JobType.i2v_custom:
+                    enhancer = I2VPromptEnhancerService(self._llm)
+                    result = await enhancer.enhance(req.custom_prompt)
+                    enhanced_prompt = result["prompt"]
+                    enhanced_lora = result["lora"]
+                else:
+                    sys_prompt = build_prompt_generation_prompt(req.job_type.value)
+                    messages = [
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": req.custom_prompt},
+                    ]
+                    enhanced_prompt = await self._llm.complete(messages, options=PROMPT_OPTIONS)
             except Exception:
                 logger.warning("Prompt enhancement failed — using original")
                 enhanced_prompt = req.custom_prompt
@@ -159,6 +168,11 @@ class GenerateService:
             "lora": scene.get("lora", ""),
             "mood_lora": MOOD_CATALOG.get(req.mood_modifier or "", {}).get("lora", ""),
         }
+        if enhanced_lora:
+            high, low = I2V_LORA_FILES.get(enhanced_lora, (None, None))
+            if high and low:
+                job_params["lora_high"] = high
+                job_params["lora_low"] = low
 
         # 5. Insert job (status=QUEUED — worker claims it via SKIP LOCKED)
         job = Job(

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,7 +19,13 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    telegram_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, unique=True, nullable=True, index=True
+    )
+    auth_source: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="website", server_default="website"
+    )
     display_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
     credits: Mapped[float] = mapped_column(Numeric(10, 2, asdecimal=False), nullable=False, default=10)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

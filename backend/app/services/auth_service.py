@@ -17,7 +17,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import RefreshToken, User
-from app.schemas.auth import LoginRequest, RegisterRequest
+from app.schemas.auth import LoginRequest, RegisterRequest, TelegramAuthRequest
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,11 @@ class AuthService:
             logger.exception("DB error during login lookup")
             raise
 
-        if user is None or not verify_password(req.password, user.hashed_password):
+        if (
+            user is None
+            or user.hashed_password is None
+            or not verify_password(req.password, user.hashed_password)
+        ):
             raise UnauthorizedError("Invalid email or password")
 
         if not user.is_active:
@@ -85,6 +89,43 @@ class AuthService:
         refresh_token = create_refresh_token(str(user.id))
         await self._store_refresh_token(user.id, refresh_token)
 
+        return user, access_token, refresh_token
+
+
+    async def issue_telegram_token(
+        self,
+        telegram_user_id: int,
+        display_name: str | None = None,
+    ) -> tuple[User, str, str]:
+        """Mint JWT for a Telegram user (bot service token only — no password)."""
+        try:
+            result = await self._db.execute(
+                select(User).where(User.telegram_user_id == telegram_user_id)
+            )
+            user = result.scalar_one_or_none()
+        except Exception:
+            logger.exception("DB error looking up telegram user %s", telegram_user_id)
+            raise
+
+        if user is None:
+            email = f"tg_{telegram_user_id}@pintuweb.internal"
+            user = User(
+                id=uuid.uuid4(),
+                email=email,
+                telegram_user_id=telegram_user_id,
+                auth_source="telegram",
+                hashed_password=None,
+                display_name=display_name or str(telegram_user_id),
+                credits=10,
+                plan_id="free",
+                is_verified=True,
+            )
+            self._db.add(user)
+            await self._db.flush()
+
+        access_token = create_access_token(str(user.id))
+        refresh_token = create_refresh_token(str(user.id))
+        await self._store_refresh_token(user.id, refresh_token)
         return user, access_token, refresh_token
 
     async def refresh(self, refresh_token: str) -> tuple[str, str]:

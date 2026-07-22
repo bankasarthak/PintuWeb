@@ -17,6 +17,7 @@ from app.routers import (
     chat_router,
     gallery_router,
     generate_router,
+    prompt_enhance_router,
 )
 
 logging.basicConfig(
@@ -96,6 +97,7 @@ app.include_router(characters_router)
 app.include_router(generate_router)
 app.include_router(chat_router)
 app.include_router(gallery_router)
+app.include_router(prompt_enhance_router)
 
 
 @app.get("/health", tags=["health"])

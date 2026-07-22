@@ -8,7 +8,8 @@ Lifecycle per job:
          → COMPLETED / FAILED / TIMED_OUT
   On failure: credits refunded, input R2 key cleaned up.
   On success: output fetched from ComfyUI, uploaded to R2.
-  In all cases: ComfyUI input/output files deleted after delivery.
+  After every job: delete ComfyUI input/ + output files only.
+  Models stay loaded — never call /free, /interrupt, or unload GGUF weights.
 
 Run with:
   POD_ID=i2v-pod-1 python -m worker
@@ -16,6 +17,7 @@ Run with:
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import os
 import signal
@@ -43,6 +45,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 logger = logging.getLogger("worker")
+
+INPUT_IMAGE_PLACEHOLDER = "__PINTU_INPUT__"
+_VIDEO_JOB_TYPES = {JobType.i2v, JobType.i2v_custom}
 
 # Graceful shutdown flag
 _shutdown = asyncio.Event()
@@ -119,20 +124,50 @@ async def _submit_workflow(
     session: aiohttp.ClientSession, pod_url: str, job: Job, comfyui_input_name: str | None
 ) -> str:
     """Submit the workflow to ComfyUI. Returns prompt_id."""
-    payload = {
-        "prompt": {
-            "job_id": str(job.id),
-            "job_type": job.job_type.value,
-            "lora": job.job_params.get("lora", ""),
-            "mood_lora": job.job_params.get("mood_lora", ""),
-            "prompt": job.final_prompt or job.enhanced_prompt or job.custom_prompt or "",
-            "source_image": comfyui_input_name or "",
+    params = dict(job.job_params or {})
+    stored_workflow = params.get("comfyui_workflow")
+
+    if stored_workflow and comfyui_input_name:
+        workflow = _inject_input_image(stored_workflow, comfyui_input_name)
+        payload = {"prompt": workflow, "client_id": str(uuid.uuid4())}
+        logger.info("Submitting pre-built ComfyUI workflow for job %s", job.id)
+    else:
+        payload = {
+            "prompt": {
+                "job_id": str(job.id),
+                "job_type": job.job_type.value,
+                "lora": params.get("lora", ""),
+                "mood_lora": params.get("mood_lora", ""),
+                "lora_high": params.get("lora_high", ""),
+                "lora_low": params.get("lora_low", ""),
+                "scene_lora_high": params.get("scene_lora_high", ""),
+                "scene_lora_low": params.get("scene_lora_low", ""),
+                "prompt": job.final_prompt or job.enhanced_prompt or job.custom_prompt or "",
+                "source_image": comfyui_input_name or "",
+            }
         }
-    }
+        logger.warning(
+            "Job %s has no comfyui_workflow in job_params — using legacy payload",
+            job.id,
+        )
+
     async with session.post(f"{pod_url}/prompt", json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
         resp.raise_for_status()
         data = await resp.json(content_type=None)
         return data["prompt_id"]
+
+
+def _inject_input_image(workflow: dict, filename: str) -> dict:
+    wf = copy.deepcopy(workflow)
+    for node in wf.values():
+        if not isinstance(node, dict):
+            continue
+        if node.get("class_type") != "LoadImage":
+            continue
+        inputs = node.get("inputs") or {}
+        if inputs.get("image") == INPUT_IMAGE_PLACEHOLDER:
+            inputs["image"] = filename
+    return wf
 
 
 async def _poll_until_done(
@@ -195,19 +230,91 @@ async def _fetch_output_bytes(
 
 
 async def _delete_comfyui_file(
-    session: aiohttp.ClientSession, pod_url: str, filename: str, subfolder: str = "", ftype: str = "output"
+    session: aiohttp.ClientSession,
+    pod_url: str,
+    filename: str,
+    *,
+    subfolder: str = "",
+    ftype: str = "output",
 ) -> None:
-    """Ask ComfyUI to delete a file from its input/output folder."""
-    try:
-        async with session.delete(
-            f"{pod_url}/delete/item",
-            json={"filename": filename, "subfolder": subfolder, "type": ftype},
-            timeout=aiohttp.ClientTimeout(total=10),
-        ) as resp:
-            if resp.status not in (200, 204, 404):
-                logger.warning("ComfyUI delete returned %s for %s", resp.status, filename)
-    except Exception:
-        logger.warning("ComfyUI file delete failed for %s", filename, exc_info=True)
+    """Delete one file from ComfyUI input/ or output/ only — never touch models."""
+    payload = {"filename": filename, "subfolder": subfolder, "type": ftype}
+    attempts: list[tuple[str, str, dict | None]] = [
+        ("DELETE", f"{pod_url}/delete/item", payload),
+        ("POST", f"{pod_url}/pintu/delete_file", payload),
+        ("POST", f"{pod_url}/upload/delete", payload),
+    ]
+    for method, url, body in attempts:
+        try:
+            if method == "DELETE":
+                async with session.delete(
+                    url, json=body, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status in (200, 204, 404):
+                        return
+            else:
+                async with session.post(
+                    url, json=body, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status in (200, 204, 404):
+                        return
+        except Exception:
+            continue
+    logger.warning("ComfyUI file delete failed for %s (type=%s)", filename, ftype)
+
+
+def _output_files_from_comfyui(outputs: dict | None) -> list[tuple[str, str, str]]:
+    """List (filename, subfolder, type) tuples from a ComfyUI history outputs dict."""
+    if not outputs:
+        return []
+    seen: set[tuple[str, str, str]] = set()
+    files: list[tuple[str, str, str]] = []
+    for node_output in outputs.values():
+        if not isinstance(node_output, dict):
+            continue
+        for key in ("gifs", "videos", "images"):
+            for file_info in node_output.get(key) or []:
+                if not isinstance(file_info, dict):
+                    continue
+                filename = str(file_info.get("filename") or "").strip()
+                if not filename:
+                    continue
+                subfolder = str(file_info.get("subfolder") or "")
+                file_type = str(file_info.get("type") or "output")
+                item = (filename, subfolder, file_type)
+                if item not in seen:
+                    seen.add(item)
+                    files.append(item)
+    return files
+
+
+async def _cleanup_comfyui_io_files(
+    session: aiohttp.ClientSession,
+    pod_url: str,
+    *,
+    input_filename: str | None,
+    outputs: dict | None = None,
+) -> None:
+    """Remove per-job input/output files from ComfyUI disk.
+
+    Intentionally does NOT:
+    - unload models (/free)
+    - interrupt running prompts (/interrupt)
+    - delete history metadata
+    Models remain loaded for the next job.
+    """
+    if input_filename:
+        await _delete_comfyui_file(
+            session, pod_url, input_filename, ftype="input"
+        )
+    for filename, subfolder, file_type in _output_files_from_comfyui(outputs):
+        await _delete_comfyui_file(
+            session,
+            pod_url,
+            filename,
+            subfolder=subfolder,
+            ftype=file_type,
+        )
 
 
 # ── Main job processor ────────────────────────────────────────────────────────
@@ -224,105 +331,97 @@ async def process_job(job: Job) -> None:
     deadline = datetime.now(timezone.utc) + timedelta(seconds=settings.JOB_MAX_DURATION_SECS)
 
     comfyui_input_name: str | None = None
-    comfyui_output_filename: str | None = None
+    comfyui_outputs: dict | None = None
 
     async with aiohttp.ClientSession() as http:
-        # ── Mark as PROCESSING ────────────────────────────────────────────────
-        async with AsyncSessionLocal() as db:
-            job_row = (await db.execute(select(Job).where(Job.id == job.id))).scalar_one()
-            job_row.status = JobStatus.processing
-            job_row.processing_at = datetime.now(timezone.utc)
-            await db.commit()
-
-        # ── Download input from R2 and upload to ComfyUI ──────────────────────
-        if job.input_r2_key:
-            try:
-                input_bytes = await storage.download(job.input_r2_key)
-                comfyui_input_name = await _upload_input_to_comfyui(
-                    http, pod_url, input_bytes, f"{job.id}.jpg"
-                )
-                logger.info("Input uploaded to ComfyUI as %s", comfyui_input_name)
-            except Exception:
-                logger.exception("Input download/upload failed for job %s", job.id)
-                await _fail_job(job, "Failed to upload input to ComfyUI", refund=True)
-                return
-
-        # ── Submit workflow ────────────────────────────────────────────────────
         try:
-            prompt_id = await _submit_workflow(http, pod_url, job, comfyui_input_name)
+            # ── Mark as PROCESSING ────────────────────────────────────────────────
             async with AsyncSessionLocal() as db:
                 job_row = (await db.execute(select(Job).where(Job.id == job.id))).scalar_one()
-                job_row.comfyui_prompt_id = prompt_id
+                job_row.status = JobStatus.processing
+                job_row.processing_at = datetime.now(timezone.utc)
                 await db.commit()
-            logger.info("Job %s submitted to ComfyUI as prompt %s", job.id, prompt_id)
-        except Exception:
-            logger.exception("ComfyUI submit failed for job %s", job.id)
-            await _fail_job(job, "ComfyUI submission failed", refund=True)
-            await _cleanup_comfyui_input(http, pod_url, comfyui_input_name)
-            return
 
-        # ── Poll for completion ────────────────────────────────────────────────
-        outputs = await _poll_until_done(http, pod_url, prompt_id, job.id, deadline)
-        if outputs is None:
-            logger.error("Job %s timed out or shutdown during poll", job.id)
-            await _timeout_job(job)
-            await _cleanup_comfyui_input(http, pod_url, comfyui_input_name)
-            return
+            # ── Download input from R2 and upload to ComfyUI ──────────────────────
+            if job.input_r2_key:
+                try:
+                    input_bytes = await storage.download(job.input_r2_key)
+                    comfyui_input_name = await _upload_input_to_comfyui(
+                        http, pod_url, input_bytes, f"{job.id}.jpg"
+                    )
+                    logger.info("Input uploaded to ComfyUI as %s", comfyui_input_name)
+                except Exception:
+                    logger.exception("Input download/upload failed for job %s", job.id)
+                    await _fail_job(job, "Failed to upload input to ComfyUI", refund=True)
+                    return
 
-        # ── Download output and upload to R2 ──────────────────────────────────
-        result = await _fetch_output_bytes(http, pod_url, outputs)
-        if result is None:
-            logger.error("No output file found for job %s", job.id)
-            await _fail_job(job, "No output file in ComfyUI response", refund=True)
-            await _cleanup_comfyui_input(http, pod_url, comfyui_input_name)
-            return
+            # ── Submit workflow ────────────────────────────────────────────────────
+            try:
+                prompt_id = await _submit_workflow(http, pod_url, job, comfyui_input_name)
+                async with AsyncSessionLocal() as db:
+                    job_row = (await db.execute(select(Job).where(Job.id == job.id))).scalar_one()
+                    job_row.comfyui_prompt_id = prompt_id
+                    await db.commit()
+                logger.info("Job %s submitted to ComfyUI as prompt %s", job.id, prompt_id)
+            except Exception:
+                logger.exception("ComfyUI submit failed for job %s", job.id)
+                await _fail_job(job, "ComfyUI submission failed", refund=True)
+                return
 
-        output_bytes, comfyui_output_filename = result
-        suffix = ".mp4" if job.job_type == JobType.i2v else ".jpg"
+            # ── Poll for completion ────────────────────────────────────────────────
+            comfyui_outputs = await _poll_until_done(http, pod_url, prompt_id, job.id, deadline)
+            if comfyui_outputs is None:
+                logger.error("Job %s timed out or shutdown during poll", job.id)
+                await _timeout_job(job)
+                return
 
-        try:
-            output_key = await storage.upload(
-                output_bytes, prefix=f"outputs/{job.user_id}", suffix=suffix
+            # ── Download output and upload to R2 ──────────────────────────────────
+            result = await _fetch_output_bytes(http, pod_url, comfyui_outputs)
+            if result is None:
+                logger.error("No output file found for job %s", job.id)
+                await _fail_job(job, "No output file in ComfyUI response", refund=True)
+                return
+
+            output_bytes, _comfyui_output_filename = result
+            suffix = ".mp4" if job.job_type in _VIDEO_JOB_TYPES else ".jpg"
+
+            try:
+                output_key = await storage.upload(
+                    output_bytes, prefix=f"outputs/{job.user_id}", suffix=suffix
+                )
+            except Exception:
+                logger.exception("R2 output upload failed for job %s", job.id)
+                await _fail_job(job, "R2 output upload failed", refund=True)
+                return
+
+            # ── Mark COMPLETED ─────────────────────────────────────────────────────
+            async with AsyncSessionLocal() as db:
+                job_row = (await db.execute(select(Job).where(Job.id == job.id))).scalar_one()
+                job_row.status = JobStatus.completed
+                job_row.output_r2_key = output_key
+                job_row.completed_at = datetime.now(timezone.utc)
+                job_row.delivered_at = datetime.now(timezone.utc)
+                job_params_snapshot = dict(job_row.job_params or {})
+                await db.commit()
+
+            logger.info("Job %s completed — output at %s", job.id, output_key)
+
+            # ── Telegram delivery webhook (fire-and-forget) ───────────────────────
+            await _notify_telegram_delivery(
+                http=http,
+                job_id=str(job.id),
+                job_type=job.job_type.value,
+                output_r2_key=output_key,
+                job_params=job_params_snapshot,
+                status="completed",
             )
-        except Exception:
-            logger.exception("R2 output upload failed for job %s", job.id)
-            await _fail_job(job, "R2 output upload failed", refund=True)
-            await _cleanup_comfyui_input(http, pod_url, comfyui_input_name)
-            return
-
-        # ── Cleanup ComfyUI files (input + output) ────────────────────────────
-        await _cleanup_comfyui_input(http, pod_url, comfyui_input_name)
-        if comfyui_output_filename:
-            await _delete_comfyui_file(http, pod_url, comfyui_output_filename)
-
-        # ── Mark COMPLETED ─────────────────────────────────────────────────────
-        async with AsyncSessionLocal() as db:
-            job_row = (await db.execute(select(Job).where(Job.id == job.id))).scalar_one()
-            job_row.status = JobStatus.completed
-            job_row.output_r2_key = output_key
-            job_row.completed_at = datetime.now(timezone.utc)
-            job_row.delivered_at = datetime.now(timezone.utc)
-            job_params_snapshot = dict(job_row.job_params or {})
-            await db.commit()
-
-        logger.info("Job %s completed — output at %s", job.id, output_key)
-
-        # ── Telegram delivery webhook (fire-and-forget) ───────────────────────
-        await _notify_telegram_delivery(
-            http=http,
-            job_id=str(job.id),
-            job_type=job.job_type.value,
-            output_r2_key=output_key,
-            job_params=job_params_snapshot,
-            status="completed",
-        )
-
-
-async def _cleanup_comfyui_input(
-    session: aiohttp.ClientSession, pod_url: str, comfyui_filename: str | None
-) -> None:
-    if comfyui_filename:
-        await _delete_comfyui_file(session, pod_url, comfyui_filename, ftype="input")
+        finally:
+            await _cleanup_comfyui_io_files(
+                http,
+                pod_url,
+                input_filename=comfyui_input_name,
+                outputs=comfyui_outputs,
+            )
 
 
 async def _fail_job(job: Job, reason: str, refund: bool = False) -> None:
