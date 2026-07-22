@@ -9,10 +9,10 @@ from app.core.exceptions import ServiceError
 logger = logging.getLogger(__name__)
 
 CHAT_OPTIONS: dict = {
-    "temperature": 0.8,
-    "top_p": 0.85,
+    "temperature": 0.7,
+    "top_p": 0.8,
     "top_k": 20,
-    "num_predict": 250,
+    "num_predict": 400,
 }
 PROMPT_OPTIONS: dict = {
     "temperature": 0.5,
@@ -38,7 +38,6 @@ class LLMClient:
             "messages": messages,
             "stream": False,
             "think": False,
-            "keep_alive": "30m",
             "options": options or CHAT_OPTIONS,
         }
 
