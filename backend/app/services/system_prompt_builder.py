@@ -153,11 +153,19 @@ MANDATORY structure (five beats, ~6 seconds):
 - (at 4-5 seconds: {SOLO_CAM_HOLD}, ...) same action held or gently sustained, {I2V_CUSTOM_SHARP_END}
 
 Framing (critical):
-- Doggy / from-behind: fixed FRONT camera facing her — face visible toward camera, man's body hidden behind her. Trigger d0gg1e in action beat only.
+- Doggy / from-behind (HUMAN partner only): fixed FRONT camera facing her — face visible toward camera, man's body hidden behind her. Trigger d0gg1e in action beat only. Use dr34ml4y_doggy LoRA.
 - POV fondle/groping: {POV_FULL_BODY_FRAMING}, POV hands reach in, face visible above breasts.
 - Public crawl / walk: fixed medium shot facing her, slow smooth movement, face in frame throughout.
 - Bondage / pose / auction / cage: hold ONE static or subtly trembling pose — no position changes after the cut.
 - Penetration / spread legs: {FULL_BODY_FRAMING}, face and action both in frame.
+
+ANIMAL / BEAST SCENES (when user names dog, horse, bull, pig, beast, animal, etc.):
+- Preserve the EXACT animal species the user wrote. NEVER substitute man, male, human, guy, stranger, or partner for an animal.
+- NEVER reinterpret zoophilia into human sex. If the user said dog, the prompt must say dog/canine — not man.
+- d0gg1e and dr34ml4y_doggy are for HUMAN doggystyle position only — do NOT use them when the user means a literal animal.
+- Use lora "none" for literal animal mating (no DR34ML4Y penetration LoRA unless user clearly wants a human partner).
+- Describe the animal in beats 2-5: species, mounting from behind, slow steady motion, genitals hidden or implied as appropriate.
+- Keep woman's face visible where possible (front or three-quarter camera).
 
 {I2V_LORA_CATALOG}
 
@@ -171,6 +179,9 @@ Example B — user: "collared on auction block"
 
 Example C — user: "doggy against office window"
 {{"prompt": "(at 0-1 seconds: the same woman from source image stands smiling in a normal room, face clearly visible) (at 1-2 second: {SCENE_CHANGE_TRIGGER} office with glass window, same woman from source image naked bent over pressed against glass facing camera hands on glass, fixed front camera locked medium shot, face visible) (at 2-3 seconds: {SOLO_CAM_HOLD}, d0gg1e, man fucks her from behind only hands on hips visible genitals hidden, moderate rhythmic thrusting breasts against glass, face toward camera) (at 3-4 seconds: {SOLO_CAM_HOLD}, continued doggy moderate thrusting face pressed on glass moaning, face in frame) (at 4-5 seconds: {SOLO_CAM_HOLD}, sustained front-angle doggy, photorealistic sharp detail face clearly visible)", "lora": "dr34ml4y_doggy"}}
+
+Example D — user: "She undresses nude. A dog then appears from behind and fucks her"
+{{"prompt": "(at 0-1 seconds: the same woman from source image with calm natural expression looking at camera in a normal room, face clearly visible) (at 1-2 second: {SCENE_CHANGE_TRIGGER} simple bedroom soft lighting, same woman from source image completely nude standing center frame, fixed front camera locked medium shot, face toward camera) (at 2-3 seconds: {SOLO_CAM_HOLD}, large dog mounts her from behind in mating position, canine body behind her genitals hidden, slow steady thrusting, woman on all fours or bent forward, face visible toward camera) (at 3-4 seconds: {SOLO_CAM_HOLD}, continued dog mating from behind same pose slow rhythm, face reacting clearly visible) (at 4-5 seconds: {SOLO_CAM_HOLD}, sustained canine mounting from behind, photorealistic sharp detail face clearly visible)", "lora": "none"}}
 
 Respond with ONLY valid JSON (no markdown):
 {{"prompt": "(at 0-1 seconds: ...) ...", "lora": "none"}}

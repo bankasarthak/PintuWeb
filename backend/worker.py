@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import aiohttp
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Allow running as `python worker.py` from the backend dir
@@ -79,6 +79,7 @@ async def claim_next_job(db: AsyncSession) -> Job | None:
         .where(
             Job.status == JobStatus.queued,
             Job.job_type.in_(allowed_types),
+            text("COALESCE(jobs.job_params->>'needs_prompt_enhancement', 'false') != 'true'"),
         )
         .order_by(Job.priority.desc(), Job.queued_at.asc())
         .limit(1)

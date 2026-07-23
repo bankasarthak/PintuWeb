@@ -16,7 +16,7 @@ I2V_LORA_IDS: frozenset[str] = frozenset({
 I2V_LORA_CATALOG = """
 Available action LoRAs — pick exactly ONE id:
 - none — fondling, groping, posing, kneeling, crawling, bondage display, undressing, public humiliation, suspension display; NO penetration
-- dr34ml4y_doggy — doggystyle / from behind. Trigger word: d0gg1e (weave into action beat 2-3 only, NOT in setup)
+- dr34ml4y_doggy — HUMAN doggystyle / man from behind (NOT literal dog/animal). Trigger word: d0gg1e (weave into action beat 2-3 only, NOT in setup). Never use for zoophilia.
 - dr34ml4y_oral — blowjob / deepthroat. Trigger words: bl0wj0b or f4c3fck
 - dr34ml4y_missionary — missionary vaginal. Trigger word: m15510n4ry
 - dr34ml4y_prone — prone bone face-down on bed. Trigger word: pr0ne
