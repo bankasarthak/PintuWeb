@@ -6,7 +6,7 @@ import { Plus, ChevronDown } from 'lucide-react'
 import { useCharacters, useCreateCharacter } from '@/hooks/useCharacters'
 import { useCharacter } from '@/hooks/useCharacters'
 import { useUIStore } from '@/stores/ui'
-import { characterApi } from '@/lib/api'
+import { AuthenticatedAvatar } from '@/components/shared/AuthenticatedAvatar'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -28,38 +28,33 @@ function CharacterSwitcher({
 }) {
   const [open, setOpen] = useState(false)
   const active = characters.find((c) => c.id === activeId) ?? characters[0]
-  const faceUrl = active.has_face_image ? characterApi.getFace(active.id) : null
-
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#2e2e4e] bg-[#13131a] hover:border-purple-500/40 transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.02] hover:border-[#c9a96e]/40 transition-colors"
       >
-        <Avatar src={faceUrl} name={active.name || 'Her'} size="xs" />
+        <AuthenticatedAvatar characterId={active.id} name={active.name} hasFaceImage={active.has_face_image} size="xs" />
         <span className="text-sm font-medium text-white">{active.name || 'Her'}</span>
-        <ChevronDown className={cn('h-3.5 w-3.5 text-[#94a3b8] transition-transform', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-3.5 w-3.5 text-[#8b8fa8] transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-2 min-w-[180px] bg-[#1a1a2e] border border-[#2e2e4e] rounded-xl shadow-xl z-50 p-1.5">
-          {characters.map((c) => {
-            const cf = c.has_face_image ? characterApi.getFace(c.id) : null
-            return (
+        <div className="absolute top-full left-0 mt-2 min-w-[180px] bg-[#0f0f14] border border-white/[0.08] rounded-xl shadow-xl z-50 p-1.5">
+          {characters.map((c) => (
               <button
                 key={c.id}
                 onClick={() => { onSwitch(c.id); setOpen(false) }}
                 className={cn(
                   'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors text-left',
-                  c.id === activeId ? 'bg-purple-600/20' : 'hover:bg-[#2e2e4e]'
+                  c.id === activeId ? 'bg-[#c9a96e]/10' : 'hover:bg-white/[0.04]'
                 )}
               >
-                <Avatar src={cf} name={c.name || 'Her'} size="xs" />
+                <AuthenticatedAvatar characterId={c.id} name={c.name} hasFaceImage={c.has_face_image} size="xs" />
                 <span className="text-sm text-white">{c.name || 'Unnamed'}</span>
-                {c.id === activeId && <span className="ml-auto text-[10px] text-purple-400 font-bold">●</span>}
+                {c.id === activeId && <span className="ml-auto text-[10px] text-[#c9a96e] font-bold">●</span>}
               </button>
-            )
-          })}
+            ))}
         </div>
       )}
 
@@ -84,7 +79,7 @@ function ChatWithCharacter({ characterId }: { characterId: string }) {
   if (!character) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-[#94a3b8] text-sm">Character not found.</p>
+        <p className="text-[#8b8fa8] text-sm">Character not found.</p>
       </div>
     )
   }
@@ -103,7 +98,7 @@ function NoCharacterState({ onCreate }: { onCreate: () => void }) {
       <div className="text-center max-w-sm">
         <div className="text-6xl mb-5">💬</div>
         <h2 className="text-xl font-bold text-white mb-3">Chat needs a Character</h2>
-        <p className="text-sm text-[#94a3b8] leading-relaxed mb-6">
+        <p className="text-sm text-[#8b8fa8] leading-relaxed mb-6">
           Create a character with a face photo and she'll respond as your personal AI companion.
           Generate images and videos right in the conversation.
         </p>
@@ -136,9 +131,9 @@ export default function ChatPage() {
   const activeCharId = characters?.find((c) => c.id === activeId)?.id ?? characters?.[0]?.id ?? null
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0f]">
+    <div className="h-screen flex flex-col bg-[#07070b]">
       {/* Header */}
-      <div className="flex-shrink-0 sticky top-0 z-30 bg-[#0a0a0f]/95 backdrop-blur-md border-b border-[#1e1e2e] px-4 py-3 flex items-center justify-between">
+      <div className="flex-shrink-0 sticky top-0 z-30 bg-[#07070b]/95 backdrop-blur-md border-b border-white/[0.08] px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-bold text-white">Chat</h1>
         {hasCharacter && characters && activeCharId && (
           <CharacterSwitcher

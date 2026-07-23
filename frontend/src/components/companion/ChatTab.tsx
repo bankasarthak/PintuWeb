@@ -14,15 +14,16 @@ import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { ConfirmModal } from '@/components/ui/modal'
-import { characterApi } from '@/lib/api'
+import { AuthenticatedAvatar } from '@/components/shared/AuthenticatedAvatar'
+import { useAuthStore } from '@/stores/auth'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import type { Character, ChatMessage, ChatSession } from '@/types'
 
-function TypingIndicator({ name }: { name: string }) {
+function TypingIndicator({ character }: { character: Character }) {
   return (
     <div className="flex items-end gap-2 max-w-[70%]">
-      <Avatar name={name} size="xs" />
-      <div className="bg-[#13131a] border border-[#1e1e2e] rounded-2xl rounded-bl-sm px-4 py-3">
+      <AuthenticatedAvatar characterId={character.id} name={character.name} hasFaceImage={character.has_face_image} size="xs" />
+      <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl rounded-bl-sm px-4 py-3">
         <div className="flex gap-1 items-center h-4">
           {[0, 1, 2].map((i) => (
             <span
@@ -40,11 +41,11 @@ function TypingIndicator({ name }: { name: string }) {
 function MessageBubble({
   message,
   character,
-  faceUrl,
+  userName,
 }: {
   message: ChatMessage
   character: Character
-  faceUrl: string | null
+  userName?: string | null
 }) {
   const isUser = message.role === 'user'
   const isNudge = message.is_nudge
@@ -58,31 +59,33 @@ function MessageBubble({
         isUser ? 'ml-auto' : 'mr-auto'
       )}
     >
-      {!isUser && (
-        <Avatar
-          src={faceUrl}
+      {!isUser ? (
+        <AuthenticatedAvatar
+          characterId={character.id}
           name={character.name || 'Companion'}
+          hasFaceImage={character.has_face_image}
           size="xs"
-          alt={`${character.name || 'Companion'} avatar`}
         />
+      ) : (
+        <Avatar name={userName || 'You'} size="xs" />
       )}
       <div
         className={cn(
           'px-4 py-3 rounded-2xl text-sm leading-relaxed',
           isUser
-            ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white rounded-br-sm'
+            ? 'bg-gradient-to-br from-[#c9a96e] to-[#e8d5b5] text-[#07070b] rounded-br-sm'
             : isNudge
-            ? 'bg-[#13131a] border border-purple-600/50 text-white rounded-bl-sm'
-            : 'bg-[#13131a] border border-[#1e1e2e] text-white rounded-bl-sm'
+            ? 'bg-white/[0.02] border border-[#c9a96e]/40 text-white rounded-bl-sm'
+            : 'bg-white/[0.02] border border-white/[0.08] text-white rounded-bl-sm'
         )}
       >
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
         {isNudge && (
-          <button className="mt-2 flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors font-medium">
+          <button className="mt-2 flex items-center gap-1.5 text-xs text-[#c9a96e] hover:text-[#e8d5b5] transition-colors font-medium">
             See my photo →
           </button>
         )}
-        <p className={cn('text-[10px] mt-1', isUser ? 'text-purple-200/70' : 'text-[#94a3b8]')}>
+        <p className={cn('text-[10px] mt-1', isUser ? 'text-[#07070b]/60' : 'text-[#8b8fa8]')}>
           {formatRelativeTime(message.created_at)}
         </p>
       </div>
@@ -115,7 +118,7 @@ function SessionItem({
     <div
       className={cn(
         'flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all group',
-        isActive ? 'bg-purple-600/20 border border-purple-600/30' : 'hover:bg-[#1e1e2e]'
+        isActive ? 'bg-[#c9a96e]/10 border border-[#c9a96e]/25' : 'hover:bg-white/[0.04]'
       )}
       onClick={!editing ? onSelect : undefined}
       role="button"
@@ -128,7 +131,7 @@ function SessionItem({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-white border-b border-purple-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-white border-b border-[#c9a96e] focus:outline-none"
             onKeyDown={(e) => { if (e.key === 'Enter') handleRename() }}
             autoFocus
           />
@@ -137,19 +140,19 @@ function SessionItem({
         </div>
       ) : (
         <>
-          <MessageSquare className="h-3.5 w-3.5 text-[#94a3b8] flex-shrink-0" />
+          <MessageSquare className="h-3.5 w-3.5 text-[#8b8fa8] flex-shrink-0" />
           <span className="flex-1 text-sm text-white truncate">{session.title}</span>
           <div className="hidden group-hover:flex items-center gap-1">
             <button
               onClick={(e) => { e.stopPropagation(); setEditing(true) }}
-              className="text-[#94a3b8] hover:text-white transition-colors"
+              className="text-[#8b8fa8] hover:text-white transition-colors"
               aria-label="Rename session"
             >
               <Edit2 className="h-3 w-3" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete() }}
-              className="text-[#94a3b8] hover:text-red-400 transition-colors"
+              className="text-[#8b8fa8] hover:text-red-400 transition-colors"
               aria-label="Delete session"
             >
               <Trash2 className="h-3 w-3" />
@@ -162,7 +165,7 @@ function SessionItem({
 }
 
 export function ChatTab({ character }: { character: Character }) {
-  const faceUrl = character.has_face_image ? characterApi.getFace(character.id) : null
+  const userName = useAuthStore((s) => s.user?.display_name || s.user?.email)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null)
   const [input, setInput] = useState('')
@@ -236,8 +239,8 @@ export function ChatTab({ character }: { character: Character }) {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Session Sidebar */}
-      <div className="w-60 flex-shrink-0 border-r border-[#1e1e2e] flex flex-col bg-[#0d0d14] hidden sm:flex">
-        <div className="p-3 border-b border-[#1e1e2e]">
+      <div className="w-60 flex-shrink-0 border-r border-white/[0.08] flex flex-col bg-[#07070b] hidden sm:flex">
+        <div className="p-3 border-b border-white/[0.08]">
           <Button
             variant="outline"
             size="sm"
@@ -261,7 +264,7 @@ export function ChatTab({ character }: { character: Character }) {
               <Spinner size="sm" />
             </div>
           ) : sessions?.length === 0 ? (
-            <p className="text-xs text-[#94a3b8] text-center py-4">No chats yet</p>
+            <p className="text-xs text-[#8b8fa8] text-center py-4">No chats yet</p>
           ) : (
             sessions?.map((session) => (
               <SessionItem
@@ -281,11 +284,11 @@ export function ChatTab({ character }: { character: Character }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Chat Header */}
         {activeSession && (
-          <div className="flex-shrink-0 px-4 py-3 border-b border-[#1e1e2e] bg-[#0d0d14] flex items-center gap-3">
-            <Avatar src={faceUrl} name={character.name || 'Companion'} size="sm" />
+          <div className="flex-shrink-0 px-4 py-3 border-b border-white/[0.08] bg-[#07070b] flex items-center gap-3">
+            <AuthenticatedAvatar characterId={character.id} name={character.name} hasFaceImage={character.has_face_image} size="sm" />
             <div>
               <p className="text-sm font-medium text-white">{character.name || 'Companion'}</p>
-              <p className="text-xs text-[#94a3b8]">{activeSession.title}</p>
+              <p className="text-xs text-[#8b8fa8]">{activeSession.title}</p>
             </div>
           </div>
         )}
@@ -293,11 +296,11 @@ export function ChatTab({ character }: { character: Character }) {
         {!activeSessionId ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="text-center">
-              <Avatar src={faceUrl} name={character.name || 'Companion'} size="xl" className="mx-auto mb-4" />
+              <AuthenticatedAvatar characterId={character.id} name={character.name} hasFaceImage={character.has_face_image} size="xl" className="mx-auto mb-4" />
               <h3 className="font-semibold text-white mb-2">
                 Start chatting with {character.name || 'your companion'}
               </h3>
-              <p className="text-sm text-[#94a3b8] mb-4">Select a chat or start a new one</p>
+              <p className="text-sm text-[#8b8fa8] mb-4">Select a chat or start a new one</p>
               <Button
                 leftIcon={<Plus className="h-4 w-4" />}
                 loading={creatingSession}
@@ -333,7 +336,7 @@ export function ChatTab({ character }: { character: Character }) {
               ) : allMessages.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center text-center">
                   <div>
-                    <p className="text-sm text-[#94a3b8] mb-1">
+                    <p className="text-sm text-[#8b8fa8] mb-1">
                       Say hi to {character.name || 'your companion'}!
                     </p>
                     <p className="text-xs text-[#4a4a6a]">They&apos;re waiting for you...</p>
@@ -345,12 +348,12 @@ export function ChatTab({ character }: { character: Character }) {
                     key={msg.id}
                     message={msg}
                     character={character}
-                    faceUrl={faceUrl}
+                    userName={userName}
                   />
                 ))
               )}
 
-              {sending && <TypingIndicator name={character.name || 'Companion'} />}
+              {sending && <TypingIndicator character={character} />}
 
               <div ref={messagesEndRef} />
             </div>
@@ -358,7 +361,7 @@ export function ChatTab({ character }: { character: Character }) {
             {showScrollBtn && (
               <button
                 onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                className="absolute bottom-24 right-6 h-8 w-8 rounded-full bg-[#13131a] border border-[#1e1e2e] flex items-center justify-center text-[#94a3b8] hover:text-white transition-colors shadow-lg"
+                className="absolute bottom-24 right-6 h-8 w-8 rounded-full bg-white/[0.02] border border-white/[0.08] flex items-center justify-center text-[#8b8fa8] hover:text-white transition-colors shadow-lg"
                 aria-label="Scroll to bottom"
               >
                 <ArrowDown className="h-4 w-4" />
@@ -366,7 +369,7 @@ export function ChatTab({ character }: { character: Character }) {
             )}
 
             {/* Input */}
-            <div className="flex-shrink-0 border-t border-[#1e1e2e] p-4 bg-[#0d0d14]">
+            <div className="flex-shrink-0 border-t border-white/[0.08] p-4 bg-[#07070b]">
               <div className="flex items-end gap-3 max-w-4xl mx-auto">
                 <textarea
                   ref={textareaRef}
@@ -375,7 +378,7 @@ export function ChatTab({ character }: { character: Character }) {
                   onKeyDown={handleKeyDown}
                   placeholder={`Message ${character.name || 'companion'}...`}
                   rows={1}
-                  className="flex-1 bg-[#13131a] border border-[#1e1e2e] rounded-xl px-4 py-3 text-sm text-white placeholder:text-[#4a4a6a] focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none resize-none max-h-32 transition-all"
+                  className="flex-1 bg-white/[0.02] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder:text-[#4a4a6a] focus:border-[#c9a96e]/50 focus:ring-2 focus:ring-[#c9a96e]/20 focus:outline-none resize-none max-h-32 transition-all"
                   style={{ height: 'auto' }}
                   onInput={(e) => {
                     const el = e.currentTarget

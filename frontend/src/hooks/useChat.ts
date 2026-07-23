@@ -120,23 +120,29 @@ export function useSendMessage(sessionId: string | null, characterId?: string) {
       return { optimisticId: optimisticMessage.id }
     },
 
-    onSuccess: (data, _content, context) => {
-      // Replace the optimistic user message with nothing (it will be refetched),
-      // and append the real assistant reply.
+    onSuccess: (data, content, context) => {
       const assistantMessage = data.message
+      const userMessage: ChatMessage = {
+        id: context?.optimisticId ?? `user-${Date.now()}`,
+        role: 'user',
+        content,
+        created_at: new Date().toISOString(),
+      }
 
       qc.setQueryData<PagedMessages>(
         ['chatMessages', sessionId],
         (old) => {
-          // Remove optimistic placeholder, then append real assistant reply
           const without = removeFromPages(old, context?.optimisticId ?? '')
-          return appendToLastPage(without, assistantMessage)
+          return appendToLastPage(appendToLastPage(without, userMessage), assistantMessage)
         }
       )
 
       if (characterId) {
         qc.invalidateQueries({ queryKey: ['chatSessions', characterId] })
       }
+
+      // Sync real message IDs from server in background
+      void qc.invalidateQueries({ queryKey: ['chatMessages', sessionId] })
     },
 
     onError: (err, _content, context) => {

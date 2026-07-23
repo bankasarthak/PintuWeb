@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import logging
 import uuid
 from pathlib import Path
@@ -16,9 +17,23 @@ from app.models.job import Job, JobStatus, JobType
 from app.models.user import User
 from app.schemas.common import PaginatedResponse
 from app.schemas.job import JobResponse
+from app.services.storage_client import StorageClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/gallery", tags=["gallery"])
+
+_MEDIA_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+}
+
+
+def _media_type_for_name(name: str) -> str:
+    return _MEDIA_TYPES.get(Path(name).suffix.lower(), "application/octet-stream")
 
 
 @router.get("/", response_model=PaginatedResponse[JobResponse])
@@ -69,6 +84,47 @@ async def list_gallery(
     )
 
 
+@router.get("/{job_id}/play-url")
+async def get_play_url(
+    job_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Return a direct playback URL (presigned R2) so the browser can stream video with Range requests."""
+    try:
+        result = await db.execute(
+            select(Job).where(
+                Job.id == job_id,
+                Job.user_id == current_user.id,
+                Job.status == JobStatus.completed,
+            )
+        )
+        job = result.scalar_one_or_none()
+    except Exception:
+        logger.exception("DB error fetching job %s for play-url", job_id)
+        raise
+
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    if not job.output_r2_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Output file not available"
+        )
+
+    storage = StorageClient(settings)
+    try:
+        url = await storage.presigned_url(job.output_r2_key)
+    except Exception:
+        logger.exception("Presigned URL failed for job %s key=%s", job_id, job.output_r2_key)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not generate playback URL",
+        ) from None
+
+    return {"url": url}
+
+
 @router.get("/{job_id}/media")
 async def get_media(
     job_id: uuid.UUID,
@@ -91,6 +147,33 @@ async def get_media(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
+    storage = StorageClient(settings)
+
+    if job.output_r2_key:
+        try:
+            data = await storage.download(job.output_r2_key)
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Output file missing in storage",
+            ) from None
+        except Exception:
+            logger.exception("R2 download failed for job %s key=%s", job_id, job.output_r2_key)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Could not fetch output from storage",
+            ) from None
+
+        media_type = _media_type_for_name(job.output_r2_key)
+        return StreamingResponse(
+            io.BytesIO(data),
+            media_type=media_type,
+            headers={
+                "Cache-Control": "private, max-age=86400",
+                "Content-Disposition": "inline",
+            },
+        )
+
     if job.output_path is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Output file not available"
@@ -102,16 +185,7 @@ async def get_media(
             status_code=status.HTTP_404_NOT_FOUND, detail="Output file missing on disk"
         )
 
-    suffix = output_path.suffix.lower()
-    media_type_map = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp",
-        ".mp4": "video/mp4",
-        ".webm": "video/webm",
-    }
-    media_type = media_type_map.get(suffix, "application/octet-stream")
+    media_type = _media_type_for_name(output_path.name)
 
     def _iter_file():
         with output_path.open("rb") as f:
@@ -146,7 +220,13 @@ async def delete_gallery_item(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    if job.output_path:
+    storage = StorageClient(settings)
+    if job.output_r2_key:
+        try:
+            await storage.delete(job.output_r2_key)
+        except Exception:
+            logger.warning("Could not delete R2 output for job %s", job_id, exc_info=True)
+    elif job.output_path:
         output_path = Path(job.output_path)
         try:
             if output_path.exists():

@@ -20,6 +20,7 @@ const categories = ['all', 'intimate', 'bondage', 'aftermath', 'lingerie', 'outd
 export function CreateTab({ character }: { character: Character }) {
   const [mode, setMode] = useState<Mode>('companion')
   const [subMode, setSubMode] = useState<SubMode>('photo')
+  const [outputFormat, setOutputFormat] = useState<'photo' | 'video'>('photo')
   const [selectedScene, setSelectedScene] = useState<string | null>(null)
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [customPrompt, setCustomPrompt] = useState('')
@@ -43,13 +44,13 @@ export function CreateTab({ character }: { character: Character }) {
   }
 
   const handleGenerate = () => {
-    const jobType = subMode === 'video' ? 'video' : 'photo'
+    const jobType = (subMode === 'custom' ? outputFormat : subMode) === 'video' ? 'i2v' : 'i2i'
     createJob(
       {
         character_id: character.id,
-        job_type: jobType,
+        job_type: subMode === 'video' ? 'i2v' : 'i2i',
         scene_id: selectedScene ?? undefined,
-        mood_ids: selectedMoods.length > 0 ? selectedMoods : undefined,
+        mood_modifier: selectedMoods[0] ?? undefined,
         custom_prompt: customPrompt || undefined,
       },
       {
@@ -122,20 +123,20 @@ export function CreateTab({ character }: { character: Character }) {
           />
           <div className="flex items-center gap-3 flex-wrap">
             <Button
-              onClick={() => setSubMode('photo')}
+              onClick={() => setOutputFormat('photo')}
               variant="outline"
               size="sm"
               leftIcon={<Camera className="h-3.5 w-3.5" />}
-              aria-pressed={subMode === 'photo'}
+              aria-pressed={outputFormat === 'photo'}
             >
               Photo
             </Button>
             <Button
-              onClick={() => setSubMode('video')}
+              onClick={() => setOutputFormat('video')}
               variant="outline"
               size="sm"
               leftIcon={<Film className="h-3.5 w-3.5" />}
-              aria-pressed={subMode === 'video'}
+              aria-pressed={outputFormat === 'video'}
             >
               Video
             </Button>

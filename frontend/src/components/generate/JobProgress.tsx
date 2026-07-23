@@ -6,107 +6,85 @@ import { useJobStatus } from '@/hooks/useGenerate'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
 interface JobProgressProps {
   jobId: string | null
   onClose: () => void
-  onComplete?: (outputPath: string) => void
+  onComplete?: (outputUrl: string) => void
 }
 
 export function JobProgress({ jobId, onClose, onComplete }: JobProgressProps) {
   const { data: job } = useJobStatus(jobId)
+  const isActive = job?.status === 'queued' || job?.status === 'claimed' || job?.status === 'processing'
+  const done = job?.status === 'completed' || job?.status === 'failed'
 
   useEffect(() => {
-    if (job?.status === 'completed' && job.output_path && onComplete) {
-      onComplete(job.output_path)
+    if (job?.status === 'completed' && job.output_url && onComplete) {
+      onComplete(job.output_url)
     }
-  }, [job?.status, job?.output_path, onComplete])
-
-  const statusMessages: Record<string, string> = {
-    queued: 'Your request is in queue...',
-    processing: 'AI is generating your content...',
-    completed: 'Generation complete!',
-    failed: 'Generation failed. Please try again.',
-  }
+  }, [job?.status, job?.output_url, onComplete])
 
   return (
-    <Modal
-      open={Boolean(jobId)}
-      onClose={job?.status === 'completed' || job?.status === 'failed' ? onClose : () => {}}
-      size="sm"
-      className="text-center"
-    >
+    <Modal open={Boolean(jobId)} onClose={done ? onClose : () => {}} size="sm" className="text-center">
       <div className="py-4">
-        {(!job || job.status === 'queued' || job.status === 'processing') && (
+        {(!job || isActive) && (
           <div className="flex flex-col items-center gap-4">
             <div className="relative h-20 w-20">
-              <div className="absolute inset-0 rounded-full border-4 border-[#1e1e2e]" />
-              <div className="absolute inset-0 rounded-full border-4 border-t-purple-500 animate-spin" />
-              <div className="absolute inset-3 rounded-full bg-purple-600/20 flex items-center justify-center">
-                <Loader2 className="h-6 w-6 text-purple-400 animate-spin" />
+              <div className="absolute inset-0 rounded-full border-4 border-white/[0.06]" />
+              <div className="absolute inset-0 rounded-full border-4 border-t-[#c9a96e] animate-spin" />
+              <div className="absolute inset-3 rounded-full bg-[#c9a96e]/10 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 text-[#c9a96e] animate-spin" />
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Generating...</h3>
-              <p className="text-sm text-[#94a3b8] mt-1">
-                {statusMessages[job?.status ?? 'queued']}
+              <h3 className="font-display text-lg font-semibold text-white">Creating…</h3>
+              <p className="text-sm text-[#8b8fa8] mt-1">
+                {job?.status === 'processing' ? 'AI is rendering your request' : 'Waiting in queue'}
               </p>
-              {job?.status === 'processing' && (
-                <p className="text-xs text-[#4a4a6a] mt-2">This usually takes 15-30 seconds</p>
-              )}
             </div>
           </div>
         )}
 
         {job?.status === 'completed' && (
           <div className="flex flex-col items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-green-900/30 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-green-400" />
+            <div className="h-16 w-16 rounded-full bg-emerald-900/25 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Done!</h3>
-              <p className="text-sm text-[#94a3b8] mt-1">Your content has been generated</p>
+              <h3 className="font-display text-lg font-semibold text-white">Complete</h3>
+              <p className="text-sm text-[#8b8fa8] mt-1">Your creation is ready</p>
             </div>
-            {job.output_path && (
-              <div className="flex gap-3 w-full">
-                <a
-                  href={job.output_path}
-                  download
-                  className="flex-1"
-                  aria-label="Download generated content"
-                >
+            <div className="flex gap-3 w-full">
+              {job.output_url && (
+                <a href={job.output_url} download target="_blank" rel="noreferrer" className="flex-1">
                   <Button variant="outline" size="sm" className="w-full" leftIcon={<Download className="h-3.5 w-3.5" />}>
                     Download
                   </Button>
                 </a>
-                <Button size="sm" className="flex-1" onClick={onClose}>
-                  View in Gallery
+              )}
+              <Link href="/gallery" className="flex-1">
+                <Button size="sm" className="w-full" onClick={onClose}>
+                  Gallery
                 </Button>
-              </div>
-            )}
+              </Link>
+            </div>
           </div>
         )}
 
         {job?.status === 'failed' && (
           <div className="flex flex-col items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-red-900/30 flex items-center justify-center">
+            <div className="h-16 w-16 rounded-full bg-red-900/25 flex items-center justify-center">
               <XCircle className="h-8 w-8 text-red-400" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Generation failed</h3>
-              <p className="text-sm text-[#94a3b8] mt-1">Something went wrong. Your credits were not charged.</p>
+              <h3 className="font-display text-lg font-semibold text-white">Something went wrong</h3>
+              <p className="text-sm text-[#8b8fa8] mt-1">{job.error_message || 'Please try again.'}</p>
             </div>
             <Button variant="outline" onClick={onClose} className="w-full">
-              Try again
+              Close
             </Button>
           </div>
-        )}
-
-        {/* Credit info */}
-        {job && (
-          <p className={cn('text-xs mt-4', job.status === 'completed' ? 'text-[#94a3b8]' : 'text-[#4a4a6a]')}>
-            {job.credits_charged > 0 ? `${job.credits_charged} credits used` : 'No credits charged'}
-          </p>
         )}
       </div>
     </Modal>

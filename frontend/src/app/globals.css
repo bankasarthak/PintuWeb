@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0a0a0f;
-  --color-card: #13131a;
-  --color-border: #1e1e2e;
-  --color-accent: #7c3aed;
-  --color-accent-light: #a855f7;
+  --color-background: #07070b;
+  --color-card: #0f0f14;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-accent: #c9a96e;
+  --color-accent-light: #e8d5b5;
   --color-text-primary: #ffffff;
-  --color-text-secondary: #94a3b8;
+  --color-text-secondary: #8b8fa8;
   --font-family-sans: 'Inter', system-ui, sans-serif;
 
   --animate-fade-in: fade-in 0.3s ease-out;
@@ -26,8 +26,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(124, 58, 237, 0.6); }
+  0%, 100% { box-shadow: 0 0 20px rgba(201, 169, 110, 0.25); }
+  50% { box-shadow: 0 0 40px rgba(201, 169, 110, 0.45); }
 }
 
 @layer base {
@@ -43,7 +43,7 @@
   }
 
   body {
-    background-color: #0a0a0f;
+    background-color: #07070b;
     color: #ffffff;
     font-family: 'Inter', system-ui, sans-serif;
   }
@@ -54,16 +54,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #0a0a0f;
+    background: #07070b;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1e1e2e;
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #7c3aed;
+    background: rgba(201, 169, 110, 0.45);
   }
 }
 
@@ -75,18 +75,18 @@
     animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .text-gradient {
-    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    background: linear-gradient(135deg, #e8d5b5, #c9a96e);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .glass {
-    background: rgba(19, 19, 26, 0.8);
+    background: rgba(15, 15, 20, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
-  .glow-purple {
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(201, 169, 110, 0.35);
   }
   .border-3 {
     border-width: 3px;
@@ -96,4 +96,22 @@
 @keyframes slide-in-right {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, 'Times New Roman', serif;
+}
+
+.surface-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1rem;
+}
+
+.accent-text {
+  color: #e8d5b5;
+}
+
+.champagne-border {
+  border-color: rgba(201, 169, 110, 0.25);
 }

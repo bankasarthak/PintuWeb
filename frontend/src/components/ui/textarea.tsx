@@ -23,7 +23,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={textareaId}
           className={cn(
             'w-full min-h-[100px] rounded-xl border bg-[#13131a] px-4 py-3 text-sm text-white placeholder:text-[#4a4a6a] transition-all resize-none',
-            'border-[#1e1e2e] focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20',
+            'border-white/[0.08] focus:border-[#c9a96e]/50 focus:outline-none focus:ring-2 focus:ring-[#c9a96e]/20',
             'disabled:cursor-not-allowed disabled:opacity-50',
             error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
             className

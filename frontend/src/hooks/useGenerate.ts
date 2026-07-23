@@ -14,6 +14,14 @@ export function useScenes() {
   })
 }
 
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: () => generateApi.getTemplates(),
+    staleTime: Infinity,
+  })
+}
+
 export function useMoods() {
   return useQuery({
     queryKey: ['moods'],
@@ -30,6 +38,8 @@ export function useCreateJob() {
     mutationFn: (payload: CreateJobPayload) => generateApi.create(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] })
+      qc.invalidateQueries({ queryKey: ['gallery'] })
+      qc.invalidateQueries({ queryKey: ['me'] })
     },
     onError: (err) => {
       toastError('Generation failed', getApiErrorMessage(err))
@@ -39,21 +49,22 @@ export function useCreateJob() {
 
 export function useJobStatus(id: string | null) {
   return useQuery({
-    queryKey: ['jobs', id],
+    queryKey: ['jobs', 'status', id],
     queryFn: () => generateApi.getJob(id!),
     enabled: Boolean(id),
     refetchInterval: (query) => {
       const status = query.state.data?.status
       if (!status) return false
-      if (status === 'queued' || status === 'processing') return 2000
+      if (status === 'queued' || status === 'claimed' || status === 'processing') return 2000
       return false
     },
   })
 }
 
-export function useJobs(characterId?: string, page = 1) {
+export function useJobs(characterId?: string, page = 1, options?: { poll?: boolean }) {
   return useQuery({
     queryKey: ['jobs', 'list', characterId, page],
     queryFn: () => generateApi.listJobs(characterId, page),
+    refetchInterval: options?.poll ? 5000 : false,
   })
 }

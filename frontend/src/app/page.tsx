@@ -110,11 +110,11 @@ export default function LandingPage() {
               Log in
             </Link>
             <Link
-              href="/signup"
+              href="/login"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:from-purple-700 hover:to-purple-600 transition-all shadow-lg shadow-purple-900/30"
-              aria-label="Create a free account"
+              aria-label="Sign in to your account"
             >
-              Try for free
+              Sign in
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -147,11 +147,11 @@ export default function LandingPage() {
 
             <div className="flex flex-wrap gap-4">
               <Link
-                href="/signup"
+                href="/login"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:from-purple-700 hover:to-purple-600 transition-all shadow-xl shadow-purple-900/40 glow-purple"
-                aria-label="Create your free AI companion"
+                aria-label="Sign in to Pintu"
               >
-                Create free
+                Get started
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -354,7 +354,7 @@ export default function LandingPage() {
                 </ul>
 
                 <Link
-                  href="/signup"
+                  href="/login"
                   className={`w-full text-center py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     highlight
                       ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-900/30'

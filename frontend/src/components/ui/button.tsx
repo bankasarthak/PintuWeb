@@ -4,21 +4,21 @@ import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0f] disabled:pointer-events-none disabled:opacity-50 active:scale-95',
+  'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a96e]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07070b] disabled:pointer-events-none disabled:opacity-50 active:scale-95',
   {
     variants: {
       variant: {
         default:
-          'bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-900/30',
+          'bg-gradient-to-r from-[#c9a96e] to-[#e8d5b5] text-[#07070b] hover:from-[#b8956a] hover:to-[#d4c4a8] shadow-lg shadow-black/30',
         outline:
-          'border border-[#1e1e2e] bg-transparent text-white hover:bg-[#1e1e2e] hover:border-purple-500',
+          'border border-white/[0.1] bg-transparent text-white hover:bg-white/[0.04] hover:border-[#c9a96e]/40',
         ghost:
-          'bg-transparent text-[#94a3b8] hover:bg-[#1e1e2e] hover:text-white',
+          'bg-transparent text-[#8b8fa8] hover:bg-white/[0.04] hover:text-white',
         destructive:
           'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/30',
         secondary:
-          'bg-[#13131a] border border-[#1e1e2e] text-white hover:bg-[#1e1e2e]',
-        link: 'text-purple-400 underline-offset-4 hover:underline bg-transparent p-0 h-auto',
+          'bg-white/[0.04] border border-white/[0.08] text-white hover:bg-white/[0.08]',
+        link: 'text-[#c9a96e] underline-offset-4 hover:underline bg-transparent p-0 h-auto',
       },
       size: {
         sm: 'h-8 px-3 text-xs',

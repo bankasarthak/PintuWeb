@@ -10,10 +10,12 @@ from app.dependencies import verify_service_token
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.auth import (
+    GoogleAuthRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
     TelegramAuthRequest,
+    TelegramLoginRequest,
     TokenResponse,
     UserResponse,
 )
@@ -28,15 +30,10 @@ async def register(
     req: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    try:
-        svc = AuthService(db)
-        _, access_token, refresh_token = await svc.register(req)
-        return TokenResponse(access_token=access_token, refresh_token=refresh_token)
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Unexpected error during registration")
-        raise
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Email registration is disabled. Sign in with Google or Telegram.",
+    )
 
 
 @router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
@@ -44,17 +41,33 @@ async def login(
     req: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    try:
-        svc = AuthService(db)
-        _, access_token, refresh_token = await svc.login(req)
-        return TokenResponse(access_token=access_token, refresh_token=refresh_token)
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Unexpected error during login")
-        raise
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Email login is disabled. Sign in with Google or Telegram.",
+    )
 
 
+@router.post("/google", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+async def google_auth(
+    req: GoogleAuthRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    svc = AuthService(db)
+    _, access_token, refresh_token = await svc.login_google(req)
+    await db.commit()
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/telegram/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+async def telegram_login(
+    req: TelegramLoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Website: verify Telegram Login Widget and issue JWT."""
+    svc = AuthService(db)
+    _, access_token, refresh_token = await svc.login_telegram_widget(req)
+    await db.commit()
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/telegram", response_model=TokenResponse, status_code=status.HTTP_200_OK)

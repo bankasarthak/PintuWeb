@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, UnauthorizedError
+from app.core.telegram_auth import verify_telegram_login
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -17,7 +18,8 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import RefreshToken, User
-from app.schemas.auth import LoginRequest, RegisterRequest, TelegramAuthRequest
+from app.schemas.auth import GoogleAuthRequest, LoginRequest, RegisterRequest, TelegramLoginRequest
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +92,83 @@ class AuthService:
         await self._store_refresh_token(user.id, refresh_token)
 
         return user, access_token, refresh_token
+
+
+    async def login_google(self, req: GoogleAuthRequest) -> tuple[User, str, str]:
+        if not settings.GOOGLE_CLIENT_ID:
+            raise UnauthorizedError("Google sign-in is not configured")
+
+        try:
+            from google.auth.transport import requests as google_requests
+            from google.oauth2 import id_token as google_id_token
+        except ImportError as exc:
+            raise UnauthorizedError("Google sign-in is unavailable") from exc
+
+        try:
+            idinfo = google_id_token.verify_oauth2_token(
+                req.id_token,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+            )
+        except Exception:
+            logger.exception("Google ID token verification failed")
+            raise UnauthorizedError("Invalid Google sign-in token")
+
+        if idinfo.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
+            raise UnauthorizedError("Invalid Google sign-in token")
+
+        email = idinfo.get("email")
+        if not email or not idinfo.get("email_verified"):
+            raise UnauthorizedError("Google account email is not verified")
+
+        display_name = idinfo.get("name") or email.split("@")[0]
+
+        try:
+            result = await self._db.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+        except Exception:
+            logger.exception("DB error during Google login lookup")
+            raise
+
+        if user is None:
+            user = User(
+                id=uuid.uuid4(),
+                email=email,
+                auth_source="google",
+                hashed_password=None,
+                display_name=display_name[:60] if display_name else None,
+                credits=10,
+                plan_id="free",
+                is_verified=True,
+            )
+            self._db.add(user)
+            await self._db.flush()
+        elif user.auth_source not in {"google", "website"}:
+            raise ConflictError("This email is linked to a different sign-in method")
+
+        if not user.is_active:
+            raise UnauthorizedError("Account is inactive")
+
+        access_token = create_access_token(str(user.id))
+        refresh_token = create_refresh_token(str(user.id))
+        await self._store_refresh_token(user.id, refresh_token)
+        return user, access_token, refresh_token
+
+    async def login_telegram_widget(self, req: TelegramLoginRequest) -> tuple[User, str, str]:
+        if not settings.TELEGRAM_BOT_TOKEN:
+            raise UnauthorizedError("Telegram sign-in is not configured")
+
+        payload = req.model_dump()
+        if not verify_telegram_login(payload, settings.TELEGRAM_BOT_TOKEN):
+            raise UnauthorizedError("Invalid Telegram sign-in")
+
+        display_name = req.first_name or ""
+        if req.last_name:
+            display_name = f"{display_name} {req.last_name}".strip()
+        if not display_name and req.username:
+            display_name = req.username
+
+        return await self.issue_telegram_token(req.id, display_name or str(req.id))
 
 
     async def issue_telegram_token(

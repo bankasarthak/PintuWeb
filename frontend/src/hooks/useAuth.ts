@@ -1,12 +1,23 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { authApi, setTokens, clearTokens } from '@/lib/api'
+import axios from 'axios'
+import {
+  authApi,
+  setTokens,
+  clearTokens,
+  hasStoredSession,
+  ensureAccessToken,
+} from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/stores/ui'
 import { getApiErrorMessage } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
-import type { LoginPayload, RegisterPayload } from '@/types'
+import type { TelegramLoginPayload } from '@/types'
+
+export function isUnauthorizedError(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 401
+}
 
 export function useMe() {
   const setUser = useAuthStore((s) => s.setUser)
@@ -14,9 +25,14 @@ export function useMe() {
 
   return useQuery({
     queryKey: ['me'],
+    enabled: typeof window !== 'undefined' && hasStoredSession(),
     queryFn: async () => {
       setLoading(true)
       try {
+        const sessionOk = await ensureAccessToken()
+        if (!sessionOk) {
+          throw Object.assign(new Error('Session expired'), { status: 401 })
+        }
         const user = await authApi.me()
         setUser(user)
         return user
@@ -24,20 +40,23 @@ export function useMe() {
         setLoading(false)
       }
     },
-    retry: false,
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error)) return false
+      return failureCount < 2
+    },
     staleTime: 1000 * 60 * 5,
   })
 }
 
-export function useLogin() {
+export function useGoogleLogin() {
   const setUser = useAuthStore((s) => s.setUser)
   const { error: toastError } = useToast()
   const router = useRouter()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (payload: LoginPayload) => {
-      const tokens = await authApi.login(payload)
+    mutationFn: async (idToken: string) => {
+      const tokens = await authApi.loginGoogle(idToken)
       setTokens(tokens.access_token, tokens.refresh_token)
       const user = await authApi.me()
       return user
@@ -45,23 +64,23 @@ export function useLogin() {
     onSuccess: (user) => {
       setUser(user)
       queryClient.setQueryData(['me'], user)
-      router.push('/dashboard')
+      router.push('/video')
     },
     onError: (err) => {
-      toastError('Login failed', getApiErrorMessage(err))
+      toastError('Google sign-in failed', getApiErrorMessage(err))
     },
   })
 }
 
-export function useRegister() {
+export function useTelegramLogin() {
   const setUser = useAuthStore((s) => s.setUser)
   const { error: toastError } = useToast()
   const router = useRouter()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (payload: RegisterPayload) => {
-      const tokens = await authApi.register(payload)
+    mutationFn: async (payload: TelegramLoginPayload) => {
+      const tokens = await authApi.loginTelegram(payload)
       setTokens(tokens.access_token, tokens.refresh_token)
       const user = await authApi.me()
       return user
@@ -69,10 +88,10 @@ export function useRegister() {
     onSuccess: (user) => {
       setUser(user)
       queryClient.setQueryData(['me'], user)
-      router.push('/dashboard')
+      router.push('/video')
     },
     onError: (err) => {
-      toastError('Registration failed', getApiErrorMessage(err))
+      toastError('Telegram sign-in failed', getApiErrorMessage(err))
     },
   })
 }

@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Camera, Video, Users, MessageCircle } from 'lucide-react'
+import { Video, Users, MessageCircle, Images } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCharacters } from '@/hooks/useCharacters'
 
 const navItems = [
-  { href: '/photos',     label: 'Photos',     icon: Camera },
   { href: '/video',      label: 'Video',       icon: Video },
   { href: '/characters', label: 'Characters',  icon: Users },
   { href: '/chat',       label: 'Chat',        icon: MessageCircle },
+  { href: '/gallery',    label: 'Gallery',     icon: Images },
 ]
 
 export function BottomNav() {
@@ -20,7 +20,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-[#0d0d14]/95 backdrop-blur-md border-t border-[#1e1e2e] flex md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-[#07070b]/95 backdrop-blur-md border-t border-white/[0.08] flex md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="Main navigation"
     >
@@ -32,27 +32,25 @@ export function BottomNav() {
             href={href}
             className={cn(
               'flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold transition-colors relative',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500',
-              isActive ? 'text-white' : 'text-[#94a3b8] hover:text-white'
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a96e]/40',
+              isActive ? 'text-white' : 'text-[#8b8fa8] hover:text-white'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            {/* active indicator */}
             {isActive && (
-              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" />
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-gradient-to-r from-[#c9a96e] to-[#e8d5b5]" />
             )}
 
             <div className="relative">
               <Icon className={cn('h-5 w-5 transition-transform', isActive && 'scale-110')} />
-              {/* character count badge */}
               {href === '/characters' && charCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[9px] font-bold text-white">
+                <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-gradient-to-br from-[#c9a96e] to-[#e8d5b5] flex items-center justify-center text-[9px] font-bold text-[#07070b]">
                   {charCount}
                 </span>
               )}
             </div>
 
-            <span className={cn(isActive && 'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent')}>
+            <span className={cn(isActive && 'bg-gradient-to-r from-[#e8d5b5] to-[#c9a96e] bg-clip-text text-transparent')}>
               {label}
             </span>
           </Link>

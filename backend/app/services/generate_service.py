@@ -18,11 +18,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import AppValidationError, ConflictError, NotFoundError
+from app.i2v_constants import I2V_POD_TARGET
 from app.models.job import Job, JobStatus, JobType
 from app.models.user import User
 from app.schemas.job import GenerateRequest
 from app.i2v_lora_catalog import I2V_LORA_FILES
+from app.services.bot_workflow_client import BotWorkflowClient
 from app.services.credit_service import CreditService
 from app.services.i2v_prompt_enhancer import I2VPromptEnhancerService
 from app.services.llm_client import PROMPT_OPTIONS, LLMClient
@@ -54,8 +56,8 @@ MOOD_CATALOG: dict[str, dict] = {
 }
 
 _CREDIT_COSTS: dict[JobType, float] = {
-    JobType.i2i: 2.0,
-    JobType.i2v: 3.0,
+    JobType.i2i: 3.0,
+    JobType.i2v: 5.0,
     JobType.i2i_custom: 2.0,
     JobType.i2v_custom: 3.0,
     JobType.random_ai: 1.0,
@@ -68,6 +70,8 @@ _PLAN_PRIORITY: dict[str, int] = {
     "pro": 7,
     "elite": 9,
 }
+
+_I2V_JOB_TYPES = {JobType.i2v, JobType.i2v_custom}
 
 
 class GenerateService:
@@ -97,12 +101,18 @@ class GenerateService:
         entry_point: str = "website",
         idempotency_key: str | None = None,
     ) -> Job:
-        if req.scene_id and req.scene_id not in SCENE_CATALOG:
+        template_bundle: dict | None = None
+        resolved_job_type = req.job_type
+
+        if req.template_id:
+            if req.scene_id and req.scene_id != req.template_id:
+                raise AppValidationError("Use either template_id or scene_id, not both")
+        elif req.scene_id and req.scene_id not in SCENE_CATALOG:
             raise NotFoundError(f"Scene '{req.scene_id}' not found")
 
         credit_cost = (
             SCENE_CATALOG[req.scene_id]["credits"]
-            if req.scene_id
+            if req.scene_id and not req.template_id
             else _CREDIT_COSTS.get(req.job_type, 2)
         )
 
@@ -113,33 +123,60 @@ class GenerateService:
             raise NotFoundError("User not found")
         priority = _PLAN_PRIORITY.get(user.plan_id, 5)
 
+        if req.job_type in _I2V_JOB_TYPES and source_image is None and not req.template_id:
+            raise AppValidationError("Source image is required for video generation")
+        if req.template_id and source_image is None:
+            raise AppValidationError("Source image is required for template generation")
+        if req.job_type == JobType.i2v_custom and not (req.custom_prompt or "").strip():
+            raise AppValidationError("custom_prompt is required for i2v_custom jobs")
+
         # 1. Atomic credit debit (SELECT FOR UPDATE inside)
         credits_svc = CreditService(self._db)
         debit_idem = f"debit:{idempotency_key}" if idempotency_key else None
-        await credits_svc.debit(
-            user_id=user_id,
-            amount=credit_cost,
-            description=f"Job {req.job_type.value}" + (f" scene={req.scene_id}" if req.scene_id else ""),
-            idempotency_key=debit_idem,
-        )
 
         # 2. Upload input image to R2 (never kept on disk)
         input_r2_key: str | None = None
+        gpu_image_bytes: bytes | None = None
+        gpu_image_width = 0
+        gpu_image_height = 0
         if source_image is not None:
+            upload_bytes = source_image
+            if req.job_type in _I2V_JOB_TYPES or req.template_id:
+                from app.services.image_prep import prepare_i2v_image
+
+                upload_bytes, gpu_image_width, gpu_image_height = prepare_i2v_image(source_image)
+                gpu_image_bytes = upload_bytes
             try:
                 suffix = ".jpg"
                 input_r2_key = await self._storage.upload(
-                    source_image, prefix=f"inputs/{user_id}", suffix=suffix
+                    upload_bytes, prefix=f"inputs/{user_id}", suffix=suffix
                 )
             except Exception:
-                logger.exception("R2 upload failed for user %s — refunding", user_id)
-                await credits_svc.refund(
-                    user_id=user_id,
-                    amount=credit_cost,
-                    description="Refund: R2 upload failure",
-                    idempotency_key=f"refund_upload:{idempotency_key}" if idempotency_key else None,
-                )
+                logger.exception("R2 upload failed for user %s", user_id)
                 raise
+
+        if req.template_id:
+            assert gpu_image_width > 0 and gpu_image_height > 0
+            bot_client = BotWorkflowClient(self._settings)
+            template_bundle = await bot_client.build_template_job(
+                template_id=req.template_id,
+                width=gpu_image_width,
+                height=gpu_image_height,
+                pod_target=I2V_POD_TARGET,
+            )
+            resolved_job_type = JobType(template_bundle["job_type"])
+            credit_cost = float(template_bundle["credit_cost"])
+
+        await credits_svc.debit(
+            user_id=user_id,
+            amount=credit_cost,
+            description=(
+                f"Job {resolved_job_type.value}"
+                + (f" template={req.template_id}" if req.template_id else "")
+                + (f" scene={req.scene_id}" if req.scene_id and not req.template_id else "")
+            ),
+            idempotency_key=debit_idem,
+        )
 
         # 3. Optional prompt enhancement
         enhanced_prompt: str | None = None
@@ -168,27 +205,67 @@ class GenerateService:
             "lora": scene.get("lora", ""),
             "mood_lora": MOOD_CATALOG.get(req.mood_modifier or "", {}).get("lora", ""),
         }
-        if enhanced_lora:
-            high, low = I2V_LORA_FILES.get(enhanced_lora, (None, None))
-            if high and low:
-                job_params["lora_high"] = high
-                job_params["lora_low"] = low
+        final_prompt = enhanced_prompt or req.custom_prompt
+
+        if req.template_id and template_bundle:
+            job_params = dict(template_bundle["job_params"])
+            job_params["template_id"] = req.template_id
+            final_prompt = template_bundle.get("final_prompt") or final_prompt
+            logger.info(
+                "Built ComfyUI workflow for website template=%s (type=%s pod=%s)",
+                req.template_id,
+                resolved_job_type.value,
+                job_params.get("pod_target"),
+            )
+        elif resolved_job_type == JobType.i2v_custom:
+            from app.services.i2v_job_builder import (
+                build_i2v_custom_job_params,
+                single_unet_for_pod,
+            )
+
+            final = enhanced_prompt or req.custom_prompt or ""
+            assert gpu_image_bytes is not None
+            job_params = build_i2v_custom_job_params(
+                final_prompt=final,
+                raw_user_prompt=req.custom_prompt or "",
+                image_width=gpu_image_width,
+                image_height=gpu_image_height,
+                lora_id=enhanced_lora,
+                pod_target=I2V_POD_TARGET,
+                single_unet=single_unet_for_pod(
+                    I2V_POD_TARGET, self._settings.COMFYUI_SINGLE_UNET
+                ),
+            )
+            final_prompt = final
+            logger.info(
+                "Built ComfyUI workflow for website i2v_custom job (pod=%s lora=%s)",
+                I2V_POD_TARGET,
+                enhanced_lora or "none",
+            )
+        elif resolved_job_type in _I2V_JOB_TYPES:
+            job_params["pod_target"] = I2V_POD_TARGET
+            if enhanced_lora:
+                high, low = I2V_LORA_FILES.get(enhanced_lora, (None, None))
+                if high and low:
+                    job_params["lora_high"] = high
+                    job_params["lora_low"] = low
 
         # 5. Insert job (status=QUEUED — worker claims it via SKIP LOCKED)
         job = Job(
             id=uuid.uuid4(),
             user_id=user_id,
             character_id=req.character_id,
-            job_type=req.job_type,
+            job_type=resolved_job_type,
             status=JobStatus.queued,
             entry_point=entry_point,
             priority=priority,
-            scene_id=req.scene_id,
+            template_id=req.template_id,
+            scene_id=req.template_id or req.scene_id,
             mood_modifier=req.mood_modifier,
             user_prompt=req.custom_prompt,
             custom_prompt=req.custom_prompt,
             enhanced_prompt=enhanced_prompt,
-            final_prompt=enhanced_prompt or req.custom_prompt,
+            final_prompt=final_prompt,
             input_r2_key=input_r2_key,
             credits_charged=credit_cost,
             job_params=job_params,

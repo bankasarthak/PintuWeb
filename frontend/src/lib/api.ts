@@ -8,16 +8,18 @@ import type {
   ChatResponse,
   SceneItem,
   MoodItem,
+  TemplatesResponse,
   PaginatedResponse,
   TokenResponse,
-  RegisterPayload,
-  LoginPayload,
+  TelegramLoginPayload,
   CreateCharacterPayload,
   UpdateCharacterPayload,
   CreateJobPayload,
   SendMessagePayload,
-  GalleryItem,
+  GalleryJob,
+  JobStatusResponse,
 } from '@/types'
+import { catalogDictToArray } from '@/lib/utils'
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
@@ -44,6 +46,30 @@ export function setTokens(accessToken: string, refreshToken: string) {
 export function clearTokens() {
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
+}
+
+/** True when the user has a persisted JWT session (access and/or refresh token). */
+export function hasStoredSession(): boolean {
+  if (typeof window === 'undefined') return false
+  return !!(getAccessToken() || getRefreshToken())
+}
+
+/** Restore access token from refresh token when only refresh is present (e.g. after reload). */
+export async function ensureAccessToken(): Promise<boolean> {
+  if (getAccessToken()) return true
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return false
+  try {
+    const { data } = await axios.post<TokenResponse>(
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/refresh`,
+      { refresh_token: refreshToken }
+    )
+    setTokens(data.access_token, data.refresh_token)
+    return true
+  } catch {
+    clearTokens()
+    return false
+  }
 }
 
 // ─── Request interceptor ─────────────────────────────────────────────────────
@@ -134,13 +160,13 @@ api.interceptors.response.use(
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (payload: RegisterPayload) =>
-    api.post<TokenResponse>('/auth/register', payload).then((r) => r.data),
-
-  login: (payload: LoginPayload) =>
+  loginGoogle: (idToken: string) =>
     api
-      .post<TokenResponse>('/auth/login', payload)
+      .post<TokenResponse>('/auth/google', { id_token: idToken })
       .then((r) => r.data),
+
+  loginTelegram: (payload: TelegramLoginPayload) =>
+    api.post<TokenResponse>('/auth/telegram/login', payload).then((r) => r.data),
 
   logout: () => {
     const refreshToken = getRefreshToken()
@@ -190,15 +216,43 @@ export const characterApi = {
 
 // ─── Generate API ─────────────────────────────────────────────────────────────
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+export function templateExampleUrl(templateId: string, filename: string, version?: number | null) {
+  const v = version ? `?v=${version}` : ''
+  return `${API_BASE}/generate/templates/examples/${encodeURIComponent(templateId)}/${filename}${v}`
+}
+
 export const generateApi = {
-  getScenes: () => api.get<SceneItem[]>('/generate/scenes').then((r) => r.data),
+  getTemplates: () =>
+    api.get<TemplatesResponse>('/generate/templates').then((r) => r.data),
 
-  getMoods: () => api.get<MoodItem[]>('/generate/moods').then((r) => r.data),
+  getScenes: () =>
+    api
+      .get<Record<string, Omit<SceneItem, 'id'>>>('/generate/scenes')
+      .then((r) => catalogDictToArray(r.data)),
 
-  create: (payload: CreateJobPayload) =>
-    api.post<Job>('/generate', payload).then((r) => r.data),
+  getMoods: () =>
+    api
+      .get<Record<string, Omit<MoodItem, 'id'>>>('/generate/moods')
+      .then((r) => catalogDictToArray(r.data)),
 
-  getJob: (id: string) => api.get<Job>(`/generate/jobs/${id}`).then((r) => r.data),
+  create: (payload: CreateJobPayload) => {
+    const form = new FormData()
+    form.append('job_type', payload.job_type)
+    if (payload.character_id) form.append('character_id', payload.character_id)
+    if (payload.scene_id) form.append('scene_id', payload.scene_id)
+    if (payload.template_id) form.append('template_id', payload.template_id)
+    if (payload.mood_modifier) form.append('mood_modifier', payload.mood_modifier)
+    if (payload.custom_prompt) form.append('custom_prompt', payload.custom_prompt)
+    if (payload.enhance_prompt) form.append('enhance_prompt', 'true')
+    if (payload.idempotency_key) form.append('idempotency_key', payload.idempotency_key)
+    if (payload.source_image) form.append('source_image', payload.source_image)
+    return api.post<Job>('/generate', form).then((r) => r.data)
+  },
+
+  getJob: (id: string) =>
+    api.get<JobStatusResponse>(`/generate/jobs/${id}`).then((r) => r.data),
 
   listJobs: (characterId?: string, page = 1, perPage = 20) =>
     api
@@ -240,14 +294,17 @@ export const chatApi = {
 // ─── Gallery API ──────────────────────────────────────────────────────────────
 
 export const galleryApi = {
-  list: (characterId?: string, mediaType?: string, page = 1, perPage = 20) =>
+  list: (
+    characterId?: string,
+    jobType?: 'i2i' | 'i2v' | 'i2i_custom' | 'i2v_custom' | 'random_ai',
+    page = 1,
+    perPage = 20
+  ) =>
     api
-      .get<PaginatedResponse<GalleryItem>>('/gallery', {
-        params: { character_id: characterId, media_type: mediaType, page, per_page: perPage },
+      .get<PaginatedResponse<GalleryJob>>('/gallery', {
+        params: { character_id: characterId, job_type: jobType, page, per_page: perPage },
       })
       .then((r) => r.data),
-
-  getMedia: (id: string) => api.get<GalleryItem>(`/gallery/${id}`).then((r) => r.data),
 
   deleteItem: (id: string) => api.delete(`/gallery/${id}`).then((r) => r.data),
 }

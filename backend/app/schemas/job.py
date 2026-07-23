@@ -11,6 +11,7 @@ from app.models.job import JobStatus, JobType
 class GenerateRequest(BaseModel):
     character_id: uuid.UUID | None = None
     scene_id: str | None = None
+    template_id: str | None = None
     mood_modifier: str | None = None
     custom_prompt: str | None = None
     job_type: JobType

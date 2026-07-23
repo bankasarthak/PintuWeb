@@ -46,6 +46,20 @@ class TelegramAuthRequest(BaseModel):
     display_name: str | None = None
 
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class TelegramLoginRequest(BaseModel):
+    id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    username: str | None = None
+    photo_url: str | None = None
+    auth_date: int
+    hash: str
+
+
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: str

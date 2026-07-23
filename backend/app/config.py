@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     # JSON dict: {"i2i": "http://pod1:8188", "i2v": "http://pod2:8188"}
     # Keys are pod names; values are ComfyUI base URLs.
     COMFYUI_PODS: dict[str, str] = {}
+    # Pod IDs that use single-UNet WAN workflow (comma/space-sep, or * / all)
+    COMFYUI_SINGLE_UNET: str = ""
 
     # ── Worker settings ───────────────────────────────────────────────────────
     WORKER_POLL_INTERVAL_SECS: int = 3
@@ -62,6 +64,11 @@ class Settings(BaseSettings):
     # Types of jobs this worker handles (comma-sep string or JSON list)
     WORKER_JOB_TYPES: list[str] = ["i2i", "i2v", "i2i_custom", "i2v_custom", "random_ai"]
 
+    # ── OAuth (website login) ───────────────────────────────────────────────────
+    GOOGLE_CLIENT_ID: str = ""
+    # Same bot token as PintuV3 — used to verify Telegram Login Widget signatures
+    TELEGRAM_BOT_TOKEN: str = ""
+
     # ── Service API token (used by Telegram bot to call this backend) ─────────
     # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
     SERVICE_API_TOKEN: str = ""
@@ -69,12 +76,18 @@ class Settings(BaseSettings):
     # ── Telegram delivery (set on worker pod so it can push results to Telegram) ──
     # The worker calls the bot's /deliver endpoint after each completed job.
     # Leave blank to disable Telegram push delivery (bot will poll instead).
-    TELEGRAM_BOT_TOKEN: str = ""
     # URL of the Telegram delivery webhook on the bot process.
     # Example: http://my-bot-host:8001/internal/deliver
     BOT_DELIVERY_URL: str = ""
     # Shared secret between worker and bot — validated by the bot before delivering.
     BOT_DELIVERY_SECRET: str = ""
+
+    # ── Telegram bot webapp (template catalog + workflow builder) ─────────────
+    # Base URL of the bot Mini App server (no trailing slash).
+    # EC2: http://127.0.0.1:8081 — public: https://bot.krewbay.in
+    BOT_WEBAPP_BASE_URL: str = ""
+    # Token sent as X-Service-Token to /internal/build-workflow (defaults to SERVICE_API_TOKEN)
+    BOT_SERVICE_TOKEN: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

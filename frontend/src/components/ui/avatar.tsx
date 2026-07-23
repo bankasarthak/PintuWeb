@@ -30,26 +30,38 @@ export function Avatar({ src, name, size = 'md', className, alt }: AvatarProps) 
   const [imgError, setImgError] = React.useState(false)
   const initials = name ? getInitials(name) : '?'
   const pixelSize = pixelSizeMap[size]
+  const isBlob = src?.startsWith('blob:')
 
   return (
     <div
       className={cn(
         'relative rounded-full overflow-hidden flex items-center justify-center flex-shrink-0',
-        'bg-gradient-to-br from-purple-600 to-purple-900 text-white font-semibold',
+        'bg-gradient-to-br from-[#c9a96e]/30 to-[#07070b] text-[#e8d5b5] font-semibold border border-[#c9a96e]/20',
         sizeMap[size],
         className
       )}
       aria-label={alt || name || 'Avatar'}
     >
       {src && !imgError ? (
-        <Image
-          src={src}
-          alt={alt || name || 'Avatar'}
-          width={pixelSize}
-          height={pixelSize}
-          className="object-cover w-full h-full"
-          onError={() => setImgError(true)}
-        />
+        isBlob ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt || name || 'Avatar'}
+            className="object-cover w-full h-full"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <Image
+            src={src}
+            alt={alt || name || 'Avatar'}
+            width={pixelSize}
+            height={pixelSize}
+            className="object-cover w-full h-full"
+            onError={() => setImgError(true)}
+            unoptimized
+          />
+        )
       ) : (
         <span>{initials}</span>
       )}

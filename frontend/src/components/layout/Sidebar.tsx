@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Camera, Video, Users, MessageCircle, Coins, LogOut, ChevronLeft, Sparkles } from 'lucide-react'
+import { Video, Users, MessageCircle, Coins, LogOut, ChevronLeft, Sparkles, Images } from 'lucide-react'
 import { cn, formatCredits } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -11,10 +11,10 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
 const navItems = [
-  { href: '/photos',     label: 'Photos',     icon: Camera },
   { href: '/video',      label: 'Video',       icon: Video },
   { href: '/characters', label: 'Characters',  icon: Users },
   { href: '/chat',       label: 'Chat',        icon: MessageCircle },
+  { href: '/gallery',    label: 'Gallery',     icon: Images },
 ]
 
 export function Sidebar() {
@@ -27,31 +27,30 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 h-full bg-[#0d0d14] border-r border-[#1e1e2e] flex flex-col z-40 transition-all duration-300',
+        'fixed left-0 top-0 h-full bg-[#07070b] border-r border-white/[0.08] flex flex-col z-40 transition-all duration-300',
         sidebarOpen ? 'w-60' : 'w-16'
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-[#1e1e2e]">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-white/[0.08]">
         {sidebarOpen && (
-          <Link href="/photos" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-white" />
+          <Link href="/video" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#c9a96e] to-[#e8d5b5] flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-[#07070b]" />
             </div>
-            <span className="text-lg font-bold text-white">Pintu</span>
+            <span className="text-lg font-bold text-white font-display">Pintu</span>
           </Link>
         )}
         {!sidebarOpen && (
-          <Link href="/photos" className="mx-auto">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-white" />
+          <Link href="/video" className="mx-auto">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#c9a96e] to-[#e8d5b5] flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-[#07070b]" />
             </div>
           </Link>
         )}
         <button
           onClick={toggleSidebar}
           className={cn(
-            'rounded-lg p-1.5 text-[#94a3b8] hover:bg-[#1e1e2e] hover:text-white transition-colors',
+            'rounded-lg p-1.5 text-[#8b8fa8] hover:bg-white/[0.04] hover:text-white transition-colors',
             !sidebarOpen && 'hidden'
           )}
           aria-label="Collapse sidebar"
@@ -60,7 +59,6 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 p-3 flex flex-col gap-1" aria-label="Main navigation">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname.startsWith(href)
@@ -70,10 +68,10 @@ export function Sidebar() {
               href={href}
               className={cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a96e]/40',
                 isActive
-                  ? 'bg-purple-600/20 text-purple-300 border border-purple-600/30'
-                  : 'text-[#94a3b8] hover:bg-[#1e1e2e] hover:text-white',
+                  ? 'bg-[#c9a96e]/10 text-[#e8d5b5] border border-[#c9a96e]/25'
+                  : 'text-[#8b8fa8] hover:bg-white/[0.04] hover:text-white',
                 !sidebarOpen && 'justify-center px-0'
               )}
               aria-current={isActive ? 'page' : undefined}
@@ -86,19 +84,15 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Info */}
-      <div className="p-3 border-t border-[#1e1e2e]">
+      <div className="p-3 border-t border-white/[0.08]">
         {sidebarOpen ? (
-          <div className="flex items-center gap-3 rounded-xl p-3 bg-[#13131a] border border-[#1e1e2e]">
-            <Avatar
-              name={user?.display_name || user?.email}
-              size="sm"
-            />
+          <div className="flex items-center gap-3 rounded-xl p-3 bg-white/[0.02] border border-white/[0.08]">
+            <Avatar name={user?.display_name || user?.email} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
                 {user?.display_name || 'User'}
               </p>
-              <Badge variant="purple" className="mt-0.5">
+              <Badge variant="gold" className="mt-0.5">
                 <Coins className="h-2.5 w-2.5 mr-1" />
                 {formatCredits(user?.credits ?? 0)} cr
               </Badge>
@@ -106,7 +100,7 @@ export function Sidebar() {
             <button
               onClick={() => logout()}
               disabled={loggingOut}
-              className="text-[#94a3b8] hover:text-red-400 transition-colors"
+              className="text-[#8b8fa8] hover:text-red-400 transition-colors"
               aria-label="Log out"
               title="Log out"
             >
@@ -117,7 +111,7 @@ export function Sidebar() {
           <button
             onClick={() => logout()}
             disabled={loggingOut}
-            className="w-full flex justify-center p-2 text-[#94a3b8] hover:text-red-400 transition-colors"
+            className="w-full flex justify-center p-2 text-[#8b8fa8] hover:text-red-400 transition-colors"
             aria-label="Log out"
             title="Log out"
           >

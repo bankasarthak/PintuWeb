@@ -51,6 +51,26 @@ export function truncate(str: string, maxLength: number): string {
   return `${str.slice(0, maxLength - 3)}...`
 }
 
+export function catalogDictToArray<T extends { label: string }>(
+  dict: Record<string, T>
+): Array<T & { id: string }> {
+  return Object.entries(dict).map(([id, value]) => ({ id, ...value }))
+}
+
+export function isVideoJobType(jobType: string): boolean {
+  return jobType === 'i2v' || jobType === 'i2v_custom'
+}
+
+export function galleryMediaUrl(jobId: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  return `${base}/gallery/${jobId}/media`
+}
+
+export function galleryPlayUrl(jobId: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  return `${base}/gallery/${jobId}/play-url`
+}
+
 export function getApiErrorMessage(error: unknown): string {
   if (!error) return 'An unexpected error occurred'
   if (typeof error === 'string') return error

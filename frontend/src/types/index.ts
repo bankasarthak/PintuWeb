@@ -18,17 +18,39 @@ export interface Character {
   created_at: string
 }
 
+export type JobStatus =
+  | 'queued'
+  | 'claimed'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'timed_out'
+
+export type JobType = 'i2i' | 'i2v' | 'i2i_custom' | 'i2v_custom' | 'random_ai'
+
 export interface Job {
   id: string
-  job_type: string
-  status: 'queued' | 'processing' | 'completed' | 'failed'
+  job_type: JobType | string
+  status: JobStatus
   scene_id: string | null
   custom_prompt: string | null
   output_path: string | null
+  output_url?: string | null
   credits_charged: number
   created_at: string
   completed_at: string | null
   character_id?: string
+  error_message?: string | null
+}
+
+export interface JobStatusResponse {
+  id: string
+  status: JobStatus
+  output_url: string | null
+  output_r2_key: string | null
+  error_message: string | null
+  progress: number | null
 }
 
 export interface ChatSession {
@@ -59,12 +81,32 @@ export interface SceneItem {
   label: string
   category: string
   credits: number
+  lora?: string
   description?: string
+}
+
+export interface TemplateItem {
+  id: string
+  label: string
+  emoji: string
+  description: string
+  has_example: boolean
+  example_v?: number | null
+  tags: string[]
+  input_mode?: string
+  paired_template_id?: string | null
+  is_final?: boolean
+}
+
+export interface TemplatesResponse {
+  templates: TemplateItem[]
+  top_rated_ids: string[]
 }
 
 export interface MoodItem {
   id: string
   label: string
+  lora?: string
 }
 
 export interface PaginatedResponse<T> {
@@ -92,6 +134,21 @@ export interface RegisterPayload {
   display_name?: string
 }
 
+
+export interface TelegramLoginPayload {
+  id: number
+  first_name?: string
+  last_name?: string
+  username?: string
+  photo_url?: string
+  auth_date: number
+  hash: string
+}
+
+export interface GoogleLoginPayload {
+  id_token: string
+}
+
 export interface LoginPayload {
   email: string
   password: string
@@ -109,25 +166,23 @@ export interface CreateCharacterPayload {
 export interface UpdateCharacterPayload extends Partial<CreateCharacterPayload> {}
 
 export interface CreateJobPayload {
-  character_id: string
-  job_type: 'photo' | 'video'
+  job_type: JobType
+  character_id?: string
   scene_id?: string
-  mood_ids?: string[]
+  template_id?: string
+  mood_modifier?: string
   custom_prompt?: string
+  enhance_prompt?: boolean
+  source_image?: File
+  idempotency_key?: string
 }
 
 export interface SendMessagePayload {
   content: string
 }
 
-export interface GalleryItem {
-  id: string
-  character_id: string
-  job_id: string
-  media_type: 'photo' | 'video'
-  url: string
-  thumbnail_url?: string
-  created_at: string
+export interface GalleryJob extends Job {
+  character_id?: string
 }
 
 export interface CreditPackage {
@@ -143,4 +198,28 @@ export interface UsageRecord {
   action: string
   credits_used: number
   created_at: string
+}
+
+export interface CatalogOption {
+  id: string
+  label: string
+}
+
+export interface StorySummary {
+  id: string
+  title: string
+  teaser: string
+  sceneCount: number
+}
+
+export interface StoryBeat {
+  id: string
+  label: string
+  sceneTitle: string
+  prompt: string
+}
+
+export interface StoryDetail extends StorySummary {
+  intro: string
+  beats: StoryBeat[]
 }
