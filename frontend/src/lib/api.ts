@@ -9,6 +9,8 @@ import type {
   SceneItem,
   MoodItem,
   TemplatesResponse,
+  StoryDetail,
+  StorySummary,
   PaginatedResponse,
   TokenResponse,
   TelegramLoginPayload,
@@ -226,6 +228,11 @@ export function templateExampleUrl(templateId: string, filename: string, version
 export const generateApi = {
   getTemplates: () =>
     api.get<TemplatesResponse>('/generate/templates').then((r) => r.data),
+
+  getStories: () => api.get<StorySummary[]>('/generate/stories').then((r) => r.data),
+
+  getStoryDetail: (storyId: string) =>
+    api.get<StoryDetail>(`/generate/stories/${encodeURIComponent(storyId)}`).then((r) => r.data),
 
   getScenes: () =>
     api

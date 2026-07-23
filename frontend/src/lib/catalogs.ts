@@ -1,4 +1,24 @@
-import type { CatalogOption, StoryDetail, StorySummary } from '@/types'
+import type { CatalogOption } from '@/types'
+
+// Legacy flat story shape for photos/story (not used for video story mode)
+export interface LegacyStorySummary {
+  id: string
+  title: string
+  teaser: string
+  sceneCount: number
+}
+
+export interface LegacyStoryBeat {
+  id: string
+  label: string
+  sceneTitle: string
+  prompt: string
+}
+
+export interface LegacyStoryDetail extends LegacyStorySummary {
+  intro: string
+  beats: LegacyStoryBeat[]
+}
 
 // ── I2I still scene wizard (mirrors bot still_catalog) ─────────────────────
 
@@ -73,7 +93,7 @@ export function buildStillPrompt(selection: Record<string, string>): string {
 
 // ── Stories (summaries for picker; beats simplified for web generation) ────
 
-export const STORY_SUMMARIES: StorySummary[] = [
+export const STORY_SUMMARIES: LegacyStorySummary[] = [
   {
     id: 'captured_slave',
     title: 'Captured Slave',
@@ -106,7 +126,7 @@ export const STORY_SUMMARIES: StorySummary[] = [
   },
 ]
 
-const STORY_BEATS: Record<string, StoryDetail> = {
+const STORY_BEATS: Record<string, LegacyStoryDetail> = {
   captured_slave: {
     ...STORY_SUMMARIES[0],
     intro: 'She wakes in chains. Each scene pushes her further.',
@@ -163,7 +183,7 @@ const STORY_BEATS: Record<string, StoryDetail> = {
   },
 }
 
-export function getStoryDetail(id: string): StoryDetail | null {
+export function getStoryDetail(id: string): LegacyStoryDetail | null {
   return STORY_BEATS[id] ?? null
 }
 

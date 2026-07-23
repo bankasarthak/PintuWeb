@@ -22,6 +22,23 @@ export function useTemplates() {
   })
 }
 
+export function useStories() {
+  return useQuery({
+    queryKey: ['stories'],
+    queryFn: () => generateApi.getStories(),
+    staleTime: Infinity,
+  })
+}
+
+export function useStoryDetail(storyId: string | null) {
+  return useQuery({
+    queryKey: ['stories', storyId],
+    queryFn: () => generateApi.getStoryDetail(storyId!),
+    enabled: Boolean(storyId),
+    staleTime: Infinity,
+  })
+}
+
 export function useMoods() {
   return useQuery({
     queryKey: ['moods'],

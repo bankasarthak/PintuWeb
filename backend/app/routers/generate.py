@@ -18,6 +18,7 @@ from app.schemas.job import GenerateRequest, JobResponse, JobStatusResponse
 from app.services.generate_service import GenerateService
 from app.services.llm_client import LLMClient
 from app.services.storage_client import StorageClient
+from app.services.stories_service import StoriesService
 from app.services.templates_service import TemplatesService
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,29 @@ async def get_template_example(template_id: str, filename: str) -> Response:
     except Exception as exc:
         logger.exception("Failed to fetch template example %s/%s", template_id, filename)
         raise HTTPException(status_code=404, detail="Example not found") from exc
+
+
+@router.get("/stories")
+async def get_stories() -> list:
+    svc = StoriesService(settings)
+    try:
+        return await svc.fetch_stories()
+    except Exception as exc:
+        logger.exception("Failed to fetch stories catalog")
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/stories/{story_id}")
+async def get_story_detail(story_id: str) -> dict:
+    svc = StoriesService(settings)
+    try:
+        detail = await svc.fetch_story_detail(story_id)
+    except Exception as exc:
+        logger.exception("Failed to fetch story %s", story_id)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Story not found")
+    return detail
 
 
 @router.post("/", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)

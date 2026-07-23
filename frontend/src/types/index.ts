@@ -208,18 +208,39 @@ export interface CatalogOption {
 export interface StorySummary {
   id: string
   title: string
+  emoji?: string
   teaser: string
-  sceneCount: number
+  scene_count: number
+  sceneCount?: number
 }
 
+export interface StoryBeatOption {
+  id: string
+  label: string
+  template_id: string
+}
+
+export interface StoryScene {
+  id: string
+  title: string
+  subtitle?: string
+  description?: string
+  beats: StoryBeatOption[]
+}
+
+export interface StoryDetail {
+  id: string
+  title: string
+  emoji?: string
+  intro?: string
+  scene_count: number
+  scenes: StoryScene[]
+}
+
+/** @deprecated Legacy flat beat shape — use StoryDetail.scenes[].beats */
 export interface StoryBeat {
   id: string
   label: string
   sceneTitle: string
   prompt: string
-}
-
-export interface StoryDetail extends StorySummary {
-  intro: string
-  beats: StoryBeat[]
 }
