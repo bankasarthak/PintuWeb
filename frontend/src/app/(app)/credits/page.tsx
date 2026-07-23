@@ -1,59 +1,42 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Coins, CheckCircle2, TrendingUp, ShoppingCart } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Coins,
+  CheckCircle2,
+  TrendingUp,
+  ShoppingCart,
+  ExternalLink,
+  Bitcoin,
+} from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/stores/ui'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatCredits, formatDateTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import api from '@/lib/api'
-import type { UsageRecord } from '@/types'
+import api, { authApi } from '@/lib/api'
+import type { CreditPackage, PaymentOrder, UsageRecord } from '@/types'
 
-const packages = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    credits: 100,
-    price_inr: 199,
-    priceDisplay: '₹199',
-    perCredit: '₹1.99/credit',
-    features: ['100 credits', 'Valid forever', 'All features'],
-    popular: false,
-    color: 'border-[#1e1e2e]',
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    credits: 300,
-    price_inr: 499,
-    priceDisplay: '₹499',
-    perCredit: '₹1.66/credit',
-    features: ['300 credits', 'Valid forever', '17% savings', 'Priority queue'],
-    popular: true,
-    color: 'border-purple-600/60',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    credits: 700,
-    price_inr: 999,
-    priceDisplay: '₹999',
-    perCredit: '₹1.43/credit',
-    features: ['700 credits', 'Valid forever', '29% savings', 'Priority queue', 'All scenes'],
-    popular: false,
-    color: 'border-[#1e1e2e]',
-  },
-]
+type BuyingKey = string | null
 
 export default function CreditsPage() {
   const user = useAuthStore((s) => s.user)
-  const { info } = useToast()
-  const [buyingId, setBuyingId] = useState<string | null>(null)
+  const setUser = useAuthStore((s) => s.setUser)
+  const { success, error: toastError, info } = useToast()
+  const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const [buyingKey, setBuyingKey] = useState<BuyingKey>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const { data: packages, isLoading: packagesLoading } = useQuery({
+    queryKey: ['credit-packages'],
+    queryFn: () => api.get<CreditPackage[]>('/credits/packages').then((r) => r.data),
+  })
 
   const { data: usageData, isLoading: usageLoading } = useQuery({
     queryKey: ['usage'],
@@ -65,21 +48,109 @@ export default function CreditsPage() {
         .then((r) => r.data),
   })
 
-  const handleBuy = (pkg: typeof packages[0]) => {
-    setBuyingId(pkg.id)
-    info('Payment coming soon', 'We are setting up payment processing. Check back soon!')
-    setTimeout(() => setBuyingId(null), 2000)
+  const refreshBalance = async (message?: string) => {
+    try {
+      const fresh = await authApi.me()
+      setUser(fresh)
+      queryClient.invalidateQueries({ queryKey: ['usage'] })
+      if (message) {
+        success('Payment received', message)
+      }
+    } catch {
+      toastError('Could not refresh balance', 'Try reloading the page in a few seconds.')
+    }
   }
+
+  useEffect(() => {
+    const payment = searchParams.get('payment')
+    const orderId = searchParams.get('order_id')
+
+    if (payment === 'cancelled') {
+      info('Payment cancelled', 'You can try again anytime.')
+      return
+    }
+
+    if (payment !== 'success') return
+
+    const pollOrder = async (id: string) => {
+      try {
+        const { data } = await api.get<PaymentOrder>(`/credits/orders/${id}`)
+        if (data.status === 'finished' || data.fulfilled_at) {
+          if (pollRef.current) clearInterval(pollRef.current)
+          await refreshBalance('Your credits have been added.')
+          return true
+        }
+      } catch {
+        /* keep polling */
+      }
+      return false
+    }
+
+    refreshBalance(
+      'Payment submitted — credits are added once the blockchain confirms (usually 1–10 min).'
+    )
+
+    if (orderId) {
+      void pollOrder(orderId)
+      pollRef.current = setInterval(() => {
+        void pollOrder(orderId)
+      }, 8000)
+    }
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [searchParams, setUser, success, toastError, info, queryClient])
+
+  const checkoutError = (err: unknown, fallback: string) => {
+    const message =
+      err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : null
+    toastError('Checkout failed', message || fallback)
+    setBuyingKey(null)
+  }
+
+  const handleUpiBuy = async (pkg: CreditPackage) => {
+    setBuyingKey(`${pkg.id}-upi`)
+    try {
+      const { data } = await api.post<{ short_url: string | null }>(
+        '/credits/checkout/razorpay',
+        { plan_id: pkg.id }
+      )
+      if (!data.short_url) throw new Error('No payment URL returned')
+      window.location.href = data.short_url
+    } catch (err) {
+      checkoutError(err, 'Could not start UPI payment. Try again.')
+    }
+  }
+
+  const handleCryptoBuy = async (pkg: CreditPackage) => {
+    setBuyingKey(`${pkg.id}-crypto`)
+    try {
+      const { data } = await api.post<{ invoice_url: string | null }>(
+        '/credits/checkout/nowpayments',
+        { plan_id: pkg.id }
+      )
+      if (!data.invoice_url) throw new Error('No invoice URL returned')
+      window.location.href = data.invoice_url
+    } catch (err) {
+      checkoutError(err, 'Could not start crypto payment. Try again.')
+    }
+  }
+
+  const anyCrypto = packages?.some((p) => p.crypto_enabled)
+  const anyUpi = packages?.some((p) => p.razorpay_enabled)
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Credits</h1>
-        <p className="text-[#94a3b8] mt-1">Purchase credits to generate photos and videos</p>
+        <p className="text-[#94a3b8] mt-1">
+          Recharge with UPI (India) or crypto (BTC, ETH, USDT, and more)
+        </p>
       </div>
 
-      {/* Balance Card */}
       <Card glow className="mb-8">
         <CardContent className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-2xl bg-purple-600/20 flex items-center justify-center">
@@ -101,61 +172,101 @@ export default function CreditsPage() {
         </CardContent>
       </Card>
 
-      {/* Pricing Cards */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-white mb-4">Buy Credits</h2>
-        <div className="grid sm:grid-cols-3 gap-5">
-          {packages.map((pkg) => (
-            <div
-              key={pkg.id}
-              className={cn(
-                'relative rounded-2xl border p-6 flex flex-col transition-all hover:scale-[1.02]',
-                pkg.popular
-                  ? 'border-purple-600/60 bg-purple-900/10 shadow-lg shadow-purple-900/20'
-                  : 'border-[#1e1e2e] bg-[#13131a]'
-              )}
-            >
-              {pkg.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-900/30">
-                    Best value
-                  </span>
-                </div>
-              )}
+      <div className="mb-10">
+        <h2 className="text-lg font-semibold text-white mb-4">Recharge packs</h2>
 
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-white">{pkg.name}</h3>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-3xl font-bold text-white">{pkg.priceDisplay}</span>
-                </div>
-                <p className="text-xs text-[#94a3b8] mt-1">{pkg.perCredit}</p>
-              </div>
-
-              <ul className="flex flex-col gap-2 flex-1 mb-5">
-                {pkg.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-[#94a3b8]">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                variant={pkg.popular ? 'default' : 'outline'}
-                className="w-full"
-                loading={buyingId === pkg.id}
-                onClick={() => handleBuy(pkg)}
-                leftIcon={<ShoppingCart className="h-3.5 w-3.5" />}
-                aria-label={`Buy ${pkg.name} package - ${pkg.credits} credits for ${pkg.priceDisplay}`}
+        {packagesLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-72" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(packages ?? []).map((pkg) => (
+              <div
+                key={pkg.id}
+                className={cn(
+                  'relative flex flex-col rounded-xl border bg-[#12121a] p-5',
+                  pkg.popular ? 'border-purple-600/60' : 'border-[#1e1e2e]'
+                )}
               >
-                Buy {pkg.credits} credits
-              </Button>
-            </div>
-          ))}
-        </div>
+                {pkg.popular && (
+                  <Badge variant="purple" className="absolute -top-2.5 left-4">
+                    Most popular
+                  </Badge>
+                )}
+
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white">{pkg.name}</h3>
+                  <div className="flex flex-col gap-0.5 mt-2">
+                    {anyUpi && (
+                      <span className="text-2xl font-bold text-white">₹{pkg.price_inr}</span>
+                    )}
+                    {anyCrypto && (
+                      <span className="text-lg font-semibold text-[#cbd5e1]">
+                        ${pkg.price_usd} crypto
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#94a3b8] mt-1">
+                    {pkg.credits} credits · {pkg.queue}
+                  </p>
+                </div>
+
+                <ul className="flex flex-col gap-2 flex-1 mb-5">
+                  <li className="flex items-center gap-2 text-sm text-[#94a3b8]">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+                    {pkg.credits} credits
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-[#94a3b8]">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+                    {pkg.queue}
+                  </li>
+                </ul>
+
+                <div className="flex flex-col gap-2">
+                  {pkg.razorpay_enabled !== false && anyUpi && (
+                    <Button
+                      variant={pkg.popular ? 'default' : 'outline'}
+                      className="w-full"
+                      loading={buyingKey === `${pkg.id}-upi`}
+                      onClick={() => handleUpiBuy(pkg)}
+                      leftIcon={
+                        buyingKey === `${pkg.id}-upi` ? (
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        ) : (
+                          <ShoppingCart className="h-3.5 w-3.5" />
+                        )
+                      }
+                    >
+                      Pay ₹{pkg.price_inr} via UPI
+                    </Button>
+                  )}
+                  {pkg.crypto_enabled !== false && anyCrypto && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-600/40 hover:border-amber-500/60"
+                      loading={buyingKey === `${pkg.id}-crypto`}
+                      onClick={() => handleCryptoBuy(pkg)}
+                      leftIcon={
+                        buyingKey === `${pkg.id}-crypto` ? (
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        ) : (
+                          <Bitcoin className="h-3.5 w-3.5" />
+                        )
+                      }
+                    >
+                      Pay ${pkg.price_usd} with crypto
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Usage History */}
       <div>
         <h2 className="text-lg font-semibold text-white mb-4">Usage History</h2>
 
@@ -184,11 +295,20 @@ export default function CreditsPage() {
                 <tbody>
                   {usageData.items.map((record) => (
                     <tr key={record.id} className="border-b border-[#1e1e2e] last:border-0">
-                      <td className="py-3 px-4 text-white capitalize">{record.action}</td>
+                      <td className="py-3 px-4 text-white">{record.action}</td>
                       <td className="py-3 px-4">
-                        <span className="text-red-400">-{record.credits_used}</span>
+                        <span
+                          className={cn(
+                            record.credits_used >= 0 ? 'text-green-400' : 'text-red-400'
+                          )}
+                        >
+                          {record.credits_used >= 0 ? '+' : ''}
+                          {formatCredits(record.credits_used)}
+                        </span>
                       </td>
-                      <td className="py-3 px-4 text-[#94a3b8]">{formatDateTime(record.created_at)}</td>
+                      <td className="py-3 px-4 text-[#94a3b8]">
+                        {formatDateTime(record.created_at)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

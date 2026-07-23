@@ -64,6 +64,21 @@ class Settings(BaseSettings):
     # Types of jobs this worker handles (comma-sep string or JSON list)
     WORKER_JOB_TYPES: list[str] = ["i2i", "i2v", "i2i_custom", "i2v_custom", "random_ai"]
 
+    # ── Razorpay (UPI recharge) ───────────────────────────────────────────────
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+    # Where Razorpay redirects after payment (e.g. https://pintu.krewbay.in/credits)
+    FRONTEND_URL: str = "http://localhost:3000"
+    # Public API base URL for payment webhooks (e.g. https://api.pintu.krewbay.in)
+    API_PUBLIC_URL: str = "http://localhost:8000"
+
+    # ── NOWPayments (crypto recharge) ───────────────────────────────────────────
+    NOWPAYMENTS_API_KEY: str = ""
+    NOWPAYMENTS_IPN_SECRET: str = ""
+    NOWPAYMENTS_BASE_CURRENCY: str = "usd"
+    NOWPAYMENTS_SANDBOX: bool = False
+
     # ── OAuth (website login) ───────────────────────────────────────────────────
     GOOGLE_CLIENT_ID: str = ""
     # Same bot token as PintuV3 — used to verify Telegram Login Widget signatures

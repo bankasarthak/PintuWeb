@@ -190,7 +190,25 @@ export interface CreditPackage {
   name: string
   credits: number
   price_inr: number
+  price_usd: number
+  price_crypto: number
+  crypto_currency: string
+  queue?: string
   popular?: boolean
+  razorpay_enabled?: boolean
+  crypto_enabled?: boolean
+}
+
+export interface PaymentOrder {
+  id: string
+  provider: string
+  plan_id: string
+  credits: number
+  price_amount: number
+  price_currency: string
+  status: string
+  fulfilled_at: string | null
+  created_at: string
 }
 
 export interface UsageRecord {

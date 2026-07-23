@@ -15,6 +15,7 @@ from app.routers import (
     auth_router,
     characters_router,
     chat_router,
+    credits_router,
     gallery_router,
     generate_router,
     prompt_enhance_router,
@@ -98,6 +99,7 @@ app.include_router(generate_router)
 app.include_router(chat_router)
 app.include_router(gallery_router)
 app.include_router(prompt_enhance_router)
+app.include_router(credits_router)
 
 
 @app.get("/health", tags=["health"])

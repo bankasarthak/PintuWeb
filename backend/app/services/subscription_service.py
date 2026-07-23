@@ -67,6 +67,25 @@ class SubscriptionService:
         # If idempotency_key already existed, txn.amount matches existing row
         return txn.amount if txn.amount > 0 else 0.0
 
+    async def upgrade_plan_if_higher(self, user_id: uuid.UUID, new_plan_id: str) -> None:
+        """Upgrade subscription only when new_plan_id outranks the current plan."""
+        if new_plan_id == "free":
+            return
+
+        priority = {"free": 0, "starter": 1, "pro": 2, "elite": 3}
+        user_result = await self._db.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        user = user_result.scalar_one_or_none()
+        if user is None:
+            raise NotFoundError("User not found")
+
+        current = str(user.plan_id or "free")
+        if priority.get(new_plan_id, 0) <= priority.get(current, 0):
+            return
+
+        await self.upgrade_plan(user_id, new_plan_id)
+
     async def upgrade_plan(
         self,
         user_id: uuid.UUID,
