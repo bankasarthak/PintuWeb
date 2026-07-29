@@ -24,13 +24,14 @@ def _llm() -> LLMClient:
     dependencies=[Depends(verify_service_token)],
 )
 async def i2v_prompt_enhancement(body: I2VPromptEnhanceRequest) -> I2VPromptEnhanceResponse:
-    """Enhance a short user I2V idea into a timestamped jumpcut prompt via Ollama."""
+    """Enhance a short user I2V idea into a gradual-transition (0-3s/3-5s) prompt via Ollama."""
     service = I2VPromptEnhancerService(_llm())
-    result = await service.enhance(body.user_prompt)
+    result = await service.enhance(body.user_prompt, subject_type=body.subject_type)
     logger.info(
-        "I2V prompt enhancement OK: input_len=%d output_len=%d lora=%s",
+        "I2V prompt enhancement OK: input_len=%d output_len=%d lora=%s subject_type=%s",
         len(body.user_prompt),
         len(result["prompt"]),
         result["lora"],
+        body.subject_type,
     )
     return I2VPromptEnhanceResponse(enhanced_prompt=result["prompt"], lora=result["lora"])
