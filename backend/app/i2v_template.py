@@ -54,12 +54,18 @@ def with_prompt_and_loras(
     prompt: str,
     lora_high: str | None = None,
     lora_low: str | None = None,
+    lora_high_strength: float | None = None,
+    lora_low_strength: float | None = None,
 ) -> I2VTemplate:
-    return replace(
-        template,
-        prompt=prompt,
-        scene_lora_high=SCENE_CHANGE_HIGH,
-        scene_lora_low=SCENE_CHANGE_LOW,
-        lora_high=lora_high,
-        lora_low=lora_low,
-    )
+    kwargs: dict = {
+        "prompt": prompt,
+        "scene_lora_high": SCENE_CHANGE_HIGH,
+        "scene_lora_low": SCENE_CHANGE_LOW,
+        "lora_high": lora_high,
+        "lora_low": lora_low,
+    }
+    if lora_high_strength is not None:
+        kwargs["lora_high_strength"] = lora_high_strength
+    if lora_low_strength is not None:
+        kwargs["lora_low_strength"] = lora_low_strength
+    return replace(template, **kwargs)

@@ -246,9 +246,10 @@ class GenerateService:
             job_params["pod_target"] = I2V_POD_TARGET
             if enhanced_lora:
                 high, low = I2V_LORA_FILES.get(enhanced_lora, (None, None))
-                if high and low:
+                if high:
                     job_params["lora_high"] = high
-                    job_params["lora_low"] = low
+                    if low:
+                        job_params["lora_low"] = low
 
         # 5. Insert job (status=QUEUED — worker claims it via SKIP LOCKED)
         job = Job(

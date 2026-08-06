@@ -23,12 +23,17 @@ I2V_LORA_IDS: frozenset[str] = frozenset({
     "k3nk_deepthroat",
     "sh00tz",
     "full_nelson",
-    "scs_missionary",
-    "scs_doggy",
-    "scs_cowgirl",
-    "scs_reverse_cowgirl",
-    "scs_spoon",
-    "scs_standing",
+    "cuntbusting",
+    "lactation",
+    "anal_no_boy",
+    "blowbang",
+    "worship_it",
+    "grabbed_by_neck",
+    "applying_condom",
+    "timefreezes",
+    "tongue_extraction",
+    "spit_to_viewer",
+    "emotional_breakdown",
 })
 
 # ids valid for each subject_type — the system prompt only offers the
@@ -37,13 +42,15 @@ LORA_IDS_BY_SUBJECT: dict[str, frozenset[str]] = {
     "solo_woman": frozenset({
         "none", "slap", "pov_missionary", "sexmachine", "doggy_frontview",
         "pov_insertion", "k3nk_deepthroat", "sh00tz",
+        "cuntbusting", "lactation", "anal_no_boy", "blowbang", "worship_it",
+        "grabbed_by_neck", "applying_condom", "timefreezes", "tongue_extraction",
+        "spit_to_viewer", "emotional_breakdown",
     }),
     "couple": frozenset({
         "none", "slap", "k3nk_deepthroat", "sh00tz", "full_nelson",
-        "scs_missionary", "scs_doggy", "scs_cowgirl", "scs_reverse_cowgirl",
-        "scs_spoon", "scs_standing",
+        "pov_missionary", "doggy_frontview",
     }),
-    "multi_women": frozenset({"none", "slap", "k3nk_deepthroat", "sh00tz"}),
+    "multi_women": frozenset({"none", "slap", "k3nk_deepthroat", "sh00tz", "cuntbusting"}),
 }
 
 I2V_LORA_CATALOG = """
@@ -55,12 +62,14 @@ Available action LoRAs — pick exactly ONE id, or "none":
 - slap — LoRA-driven face slapping or repeated open-hand breast slapping with visible impact/jiggle.
   Trigger language: "slaps her in the face" / "slaps her bare breasts". solo or couple/multi (slap
   one of the other people in frame).
-- pov_missionary — [solo_woman ONLY] first-person POV missionary, camera POV of the man looking
-  down at her. Trigger word: m15510n4ry (place only in the action beat).
+- pov_missionary — [solo_woman OR couple] first-person POV missionary, camera POV of the man looking
+  down at her (for couple photos, this is the real man from the source photo). Trigger word:
+  m15510n4ry (place only in the action beat).
 - sexmachine — [solo_woman ONLY] a mechanical fucking machine thrusts into her vagina or ass.
   Trigger: "sexmachine. thrusts back and forth within. She shakes upon impact."
-- doggy_frontview — [solo_woman ONLY] doggystyle from behind but she faces the camera so her face
-  and breasts stay visible (the male partner stays mostly out of frame). Trigger: Pl0wView.
+- doggy_frontview — [solo_woman OR couple] doggystyle from behind but she faces the camera so her
+  face and breasts stay visible (for couple photos, the real man from the source photo stays mostly
+  out of frame behind her). Trigger: Pl0wView.
 - pov_insertion — [solo_woman ONLY] captures the exact moment of penetration (missionary or
   doggystyle) when the penis was not yet visible. No short trigger — write a plain, literal
   description of the insertion moment (no euphemisms).
@@ -71,18 +80,44 @@ Available action LoRAs — pick exactly ONE id, or "none":
 - full_nelson — [couple ONLY] the real man from the couple photo holds her in a full nelson (his
   arms locked behind her neck) while thrusting; his body should stay mostly hidden — only his arms,
   thighs, and penis in frame. Trigger word: fullnelson.
-- scs_missionary — [couple ONLY] the real man and woman from the couple photo in a missionary
-  position. Trigger: mqlmis_a.
-- scs_doggy — [couple ONLY] the real couple in doggystyle. Trigger: mqldgy_a.
-- scs_cowgirl — [couple ONLY] the real couple, woman on top facing him. Trigger: mqlcg_a.
-- scs_reverse_cowgirl — [couple ONLY] the real couple, woman on top facing away from him.
-  Trigger: mqlrcg_a.
-- scs_spoon — [couple ONLY] the real couple lying on their sides, spooning position. Trigger: mqlspn_a.
-- scs_standing — [couple ONLY] the real couple having sex standing up. Trigger: mqlstd_a.
+- cuntbusting — [solo_woman OR multi_women] another woman kicks/strikes her directly between the
+  legs (crotch kick/knee strike), pain-pleasure reaction. Trigger words: "Cuntbusting, kickbusting".
+  For solo_woman, bring an anonymous second woman into frame during the 0-3s beat.
+- lactation — [solo_woman ONLY] she squeezes her own breasts and milk sprays/streams from her
+  nipples. Trigger word: l4ct4t10n. Use this whenever the idea is breast squeezing + milk/lactation,
+  NOT the generic "none" bucket.
+- anal_no_boy — [solo_woman ONLY] POV anal penetration from behind with no male body visible in
+  frame — only the penis enters from the frame edge. No short trigger, write it literally.
+- blowbang — [solo_woman ONLY] one woman services multiple men (roughly 3-4) at once with mouth and
+  both hands. Trigger word: bl0wb4ng. Pin the exact head count in the negative-style wording if the
+  user specifies one (dataset is trained on ~4 men).
+- worship_it — [solo_woman ONLY] slow reverent oral worship of a penis — licking up the shaft,
+  kissing the tip, then a deep blowjob. Triggers: cock_worship, cock_lick, cock_slap, titfuck,
+  handjob, blowjob, deepthroat (pick whichever phrase matches the idea).
+- grabbed_by_neck — [solo_woman ONLY] a disembodied POV hand reaches into frame and grabs her by
+  the neck, forcing her down onto her knees. Trigger (full sentence): "First-person perspective, a
+  hand from outside reaches out to grab their neck, forcing them to kneel."
+- applying_condom — [solo_woman ONLY] she unwraps and rolls a condom onto a man's penis before sex.
+  No short trigger — use the full literal description (small round condom, rolls it down the shaft,
+  fits tightly, covers the entire penis). Use LOW strength (already set at 0.4) — do not suggest a
+  higher strength.
+- timefreezes — [solo_woman ONLY] SFW-only helper: everything freezes except a pair of POV hands
+  that undress her frozen, unaware body piece by piece. No baked sexual act — pair with plain
+  undressing wording only, never with penetration/oral in the same beat.
+- tongue_extraction — [solo_woman ONLY] a POV hand reaches in and pulls her extended tongue between
+  two fingers, stretching it. No short trigger, write it literally.
+- spit_to_viewer — [solo_woman ONLY] she spits directly at/onto the camera lens. Trigger phrase:
+  "a woman spitting to the viewer."
+- emotional_breakdown — [solo_woman ONLY] SFW-only expression helper for crying/sobbing/panicking —
+  NOT a sexual action LoRA. Only pick this for non-sexual emotional-distress ideas (crying, anxiety,
+  breakdown) with no nudity/sexual content in the same beat. Triggers: "she breaks down in tears,
+  sobbing" / "she panics, fretting anxiously" / "she cries out in pain".
 
 Never invent a LoRA id that isn't in this list. Never mention or pick a scene-change LoRA — there
 is no scene-change LoRA in this pipeline; scene transitions are handled entirely by the wording of
-the 0-3s beat (see GRADUAL TRANSITION rule above). Never use expression/emotion LoRAs.
+the 0-3s beat (see GRADUAL TRANSITION rule above). Never use expression/emotion LoRAs (timefreezes,
+emotional_breakdown) for a beat that also contains nudity or a sexual act — those two ids are SFW
+helpers only.
 """
 
 # Maps lora id → (high_filename, low_filename). NOTE: kept as a 2-tuple —
@@ -110,15 +145,17 @@ I2V_LORA_FILES: dict[str, tuple[str | None, str | None]] = {
     ),
     "sh00tz": ("sh00tz_HN_75.safetensors", "sh00tz_LN_75.safetensors"),
     "full_nelson": ("fullnelson_v1_e80_wan.safetensors", "fullnelson_v1_e80_wan.safetensors"),
-    "scs_missionary": ("mql_missionary_a_v1_high_noise.safetensors", "mql_missionary_a_v1_low_noise.safetensors"),
-    "scs_doggy": ("mql_doggy_a_v2_high_noise.safetensors", "mql_doggy_a_v2_low_noise.safetensors"),
-    "scs_cowgirl": ("mql_cowgirl_a_v1_high_noise.safetensors", "mql_cowgirl_a_v1_low_noise.safetensors"),
-    "scs_reverse_cowgirl": (
-        "mql_reverse_cowgirl_a_v1_high_noise.safetensors",
-        "mql_reverse_cowgirl_a_v1_low_noise.safetensors",
-    ),
-    "scs_spoon": ("mql_spoon_a_v2_high_noise.safetensors", "mql_spoon_a_v2_low_noise.safetensors"),
-    "scs_standing": ("mql_standing_a_v1_high_noise.safetensors", "mql_standing_a_v1_low_noise.safetensors"),
+    "cuntbusting": ("Wan22_Cuntbusting_I2V_v1_high_noise.safetensors", "Wan22_Cuntbusting_I2V_v1_low_noise.safetensors"),
+    "lactation": ("Wan22_I2V_lactation_high_noise.safetensors", "Wan22_I2V_lactation_low_noise.safetensors"),
+    "anal_no_boy": ("anal_no_boy_high_noise.safetensors", "anal_no_boy_low_noise.safetensors"),
+    "blowbang": ("bl0wb4ng_v2_HN.safetensors", "bl0wb4ng_v2_LN.safetensors"),
+    "worship_it": ("worship_it_i2v_high_noise.safetensors", "worship_it_i2v_low_noise.safetensors"),
+    "grabbed_by_neck": ("grabbed_by_neck_high_noise.safetensors", "grabbed_by_neck_low_noise.safetensors"),
+    "applying_condom": ("applying_condom_high_noise.safetensors", "applying_condom_low_noise.safetensors"),
+    "timefreezes": ("timefreezes_i2v_high_noise.safetensors", None),
+    "tongue_extraction": ("tongue_extraction_high_noise.safetensors", "tongue_extraction_low_noise.safetensors"),
+    "spit_to_viewer": ("spit_to_viewer_high_noise.safetensors", "spit_to_viewer_low_noise.safetensors"),
+    "emotional_breakdown": ("emotional_breakdown_high_noise.safetensors", "emotional_breakdown_low_noise.safetensors"),
 }
 
 # lora id → (high_strength, low_strength) — matches the validated strengths in
@@ -136,18 +173,18 @@ I2V_LORA_STRENGTHS: dict[str, tuple[float, float]] = {
     "k3nk_deepthroat": (0.6, 0.6),
     "sh00tz": (0.7, 0.7),
     "full_nelson": (0.7, 0.7),
-    "scs_missionary": (0.7, 0.6),
-    "scs_doggy": (0.7, 0.6),
-    "scs_cowgirl": (0.7, 0.6),
-    "scs_reverse_cowgirl": (0.7, 0.6),
-    "scs_spoon": (0.7, 0.6),
-    "scs_standing": (0.7, 0.6),
+    "cuntbusting": (0.7, 0.7),
+    "lactation": (0.7, 0.7),
+    "anal_no_boy": (0.7, 0.7),
+    "blowbang": (0.7, 0.7),
+    "worship_it": (0.7, 0.7),
+    "grabbed_by_neck": (0.7, 0.7),
+    "applying_condom": (0.4, 0.4),
+    "timefreezes": (0.9, 0.0),
+    "tongue_extraction": (0.7, 0.7),
+    "spit_to_viewer": (0.7, 0.7),
+    "emotional_breakdown": (0.7, 0.7),
 }
-
-# expr_lora_low genital-rendering assist stacked alongside every scs_* position
-# LoRA — matches the validated pattern in admin_registry.py (DR34ML4Y_LOW @ 0.35).
-SCS_EXPR_LORA_LOW = "DR34ML4Y_I2V_14B_LOW_V2.safetensors"
-SCS_EXPR_LORA_LOW_STRENGTH = 0.35
 
 
 def normalize_lora_id(lora_id: str, subject_type: str = "solo_woman") -> str:
