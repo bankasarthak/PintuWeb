@@ -9,7 +9,10 @@ Lifecycle per job:
   On failure: credits refunded, input R2 key cleaned up.
   On success: output fetched from ComfyUI, uploaded to R2.
   After every job: delete ComfyUI input/ + output files only.
-  Models stay loaded — never call /free, /interrupt, or unload GGUF weights.
+  Models stay loaded — never call /free or unload GGUF weights.
+  Exception: on a job timeout we call /interrupt to kill the stuck
+  execution immediately, so it can't keep burning GPU/VRAM in the
+  background and degrade every job queued behind it.
 
 Run with:
   POD_ID=i2v-pod-1 python -m worker
@@ -39,6 +42,7 @@ from app.database import AsyncSessionLocal
 from app.models.job import Job, JobStatus, JobType
 from app.services.credit_service import CreditService
 from app.services.storage_client import StorageClient
+from app.services.watermark import apply_image_watermark, apply_video_watermark
 
 logging.basicConfig(
     level=logging.INFO,
@@ -208,6 +212,31 @@ async def _poll_until_done(
     return None
 
 
+async def _interrupt_comfyui(
+    session: aiohttp.ClientSession, pod_url: str, job_id: uuid.UUID
+) -> None:
+    """Ask ComfyUI to cancel whatever it's currently executing.
+
+    Called only when a job hits our timeout deadline. A stuck/runaway
+    prompt left running in the background fragments VRAM and slows down
+    (or times out) every job processed after it until the pod is restarted.
+    Does not unload models or touch queued/loaded weights — /interrupt just
+    stops the current execution loop.
+    """
+    try:
+        async with session.post(
+            f"{pod_url}/interrupt", timeout=aiohttp.ClientTimeout(total=10)
+        ) as resp:
+            logger.warning(
+                "Sent /interrupt to ComfyUI for timed-out job %s (HTTP %d)",
+                job_id, resp.status,
+            )
+    except Exception:
+        logger.warning(
+            "Failed to send /interrupt for timed-out job %s", job_id, exc_info=True
+        )
+
+
 async def _fetch_output_bytes(
     session: aiohttp.ClientSession, pod_url: str, outputs: dict
 ) -> tuple[bytes, str] | None:
@@ -373,6 +402,8 @@ async def process_job(job: Job) -> None:
             comfyui_outputs = await _poll_until_done(http, pod_url, prompt_id, job.id, deadline)
             if comfyui_outputs is None:
                 logger.error("Job %s timed out or shutdown during poll", job.id)
+                if not _shutdown.is_set():
+                    await _interrupt_comfyui(http, pod_url, job.id)
                 await _timeout_job(job)
                 return
 
@@ -384,7 +415,14 @@ async def process_job(job: Job) -> None:
                 return
 
             output_bytes, _comfyui_output_filename = result
-            suffix = ".mp4" if job.job_type in _VIDEO_JOB_TYPES else ".jpg"
+            is_video = job.job_type in _VIDEO_JOB_TYPES
+            suffix = ".mp4" if is_video else ".jpg"
+
+            output_bytes = (
+                await apply_video_watermark(output_bytes)
+                if is_video
+                else await apply_image_watermark(output_bytes)
+            )
 
             try:
                 output_key = await storage.upload(
