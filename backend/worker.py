@@ -315,6 +315,16 @@ def _output_files_from_comfyui(outputs: dict | None) -> list[tuple[str, str, str
                 if item not in seen:
                     seen.add(item)
                     files.append(item)
+
+                # VHS_VideoCombine (gifs entries) also writes a companion preview
+                # PNG on disk, referenced via "workflow" — same subfolder/type,
+                # not listed as its own images/videos entry. Clean it up too.
+                preview = str(file_info.get("workflow") or "").strip()
+                if preview and preview != filename:
+                    preview_item = (preview, subfolder, file_type)
+                    if preview_item not in seen:
+                        seen.add(preview_item)
+                        files.append(preview_item)
     return files
 
 
