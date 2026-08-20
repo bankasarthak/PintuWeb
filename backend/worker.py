@@ -553,9 +553,17 @@ async def _notify_telegram_delivery(
 
     The bot reads the payload, downloads the R2 output, and sends it to the user.
     Fire-and-forget — failures are logged but never raise.
+
+    Supports multiple Telegram bots sharing this one job queue: if the job was
+    submitted with `bot_delivery_url` (and optionally `bot_delivery_secret`) in
+    its `job_params`, deliver there instead of the globally configured
+    BOT_DELIVERY_URL. This lets a second/third bot process (different token,
+    different host) receive pushes for jobs it submitted, while jobs from the
+    original bot (with no such job_params) keep using the global setting
+    exactly as before.
     """
-    url = settings.BOT_DELIVERY_URL
-    secret = settings.BOT_DELIVERY_SECRET
+    url = job_params.get("bot_delivery_url") or settings.BOT_DELIVERY_URL
+    secret = job_params.get("bot_delivery_secret") or settings.BOT_DELIVERY_SECRET
     if not url:
         return  # Telegram push delivery not configured — bot will poll instead
 
