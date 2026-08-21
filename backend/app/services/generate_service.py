@@ -66,9 +66,9 @@ _CREDIT_COSTS: dict[JobType, float] = {
 # Subscription plan → job queue priority (higher = processed first)
 _PLAN_PRIORITY: dict[str, int] = {
     "free": 5,
-    "starter": 6,
-    "pro": 7,
-    "elite": 9,
+    "basic": 6,
+    "mid": 7,
+    "pro": 9,
 }
 
 _I2V_JOB_TYPES = {JobType.i2v, JobType.i2v_custom}

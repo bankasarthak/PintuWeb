@@ -72,7 +72,7 @@ class SubscriptionService:
         if new_plan_id == "free":
             return
 
-        priority = {"free": 0, "starter": 1, "pro": 2, "elite": 3}
+        priority = {"free": 0, "basic": 1, "mid": 2, "pro": 3}
         user_result = await self._db.execute(
             select(User).where(User.id == user_id).with_for_update()
         )

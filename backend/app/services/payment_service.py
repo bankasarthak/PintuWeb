@@ -22,13 +22,18 @@ from app.services.subscription_service import SubscriptionService
 
 logger = logging.getLogger(__name__)
 
+# Payment / credits.json tier → PintuWeb subscription_plans.id.
+# As of migration 008 (subscription_plans rename), plan_id == tier for
+# non-free tiers, so this is now a passthrough — kept only to normalize
+# legacy aliases ("starter"/"elite") still present in old idempotency-key
+# backfills and any not-yet-restarted callers.
 TIER_TO_PLAN_ID: dict[str, str] = {
     "free": "free",
-    "basic": "starter",
-    "starter": "starter",
-    "mid": "pro",
-    "pro": "elite",
-    "elite": "elite",
+    "basic": "basic",
+    "starter": "basic",
+    "mid": "mid",
+    "pro": "pro",
+    "elite": "pro",
 }
 
 
