@@ -12,12 +12,15 @@ from app.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.database import init_db
 from app.routers import (
+    admin_router,
     auth_router,
     characters_router,
     chat_router,
     credits_router,
     gallery_router,
     generate_router,
+    internal_router,
+    partner_router,
     prompt_enhance_router,
 )
 
@@ -59,11 +62,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     logger.info("Database ready")
 
-    # Start watchdog as a background task inside the API process.
-    # On a separate pod, run `python watchdog.py` instead.
-    from watchdog import run_watchdog  # noqa: PLC0415
-    _watchdog_task = asyncio.create_task(run_watchdog(), name="watchdog")
-    logger.info("Watchdog started")
+    if settings.RUN_WATCHDOG_IN_API:
+        from watchdog import run_watchdog  # noqa: PLC0415
+
+        _watchdog_task = asyncio.create_task(run_watchdog(), name="watchdog")
+        logger.info("Watchdog started")
+    else:
+        logger.info("Watchdog disabled (RUN_WATCHDOG_IN_API=false)")
 
     yield
 
@@ -100,6 +105,9 @@ app.include_router(chat_router)
 app.include_router(gallery_router)
 app.include_router(prompt_enhance_router)
 app.include_router(credits_router)
+app.include_router(admin_router)
+app.include_router(internal_router)
+app.include_router(partner_router)
 
 
 @app.get("/health", tags=["health"])

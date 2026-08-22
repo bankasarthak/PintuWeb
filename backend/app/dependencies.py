@@ -45,6 +45,33 @@ async def verify_service_token(
         )
 
 
+async def verify_partner_api_key(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> None:
+    """Validate external partner calls using PARTNER_API_KEY (see app/routers/partner.py).
+
+    Deliberately separate from SERVICE_API_TOKEN: that token also guards
+    bot<->PintuWeb internal calls, so handing it to an external SFW service
+    (however trusted) would let a leak reach further than intended. This is
+    a single shared key for now (revoking it revokes every partner at once —
+    fine for a single trusted partner today, but split into a per-partner
+    keys table if/when you onboard more than one external caller).
+    """
+    expected = settings.PARTNER_API_KEY
+    if not expected:
+        logger.error("PARTNER_API_KEY is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Partner API is not configured",
+        )
+
+    if not x_api_key or x_api_key != expected:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),

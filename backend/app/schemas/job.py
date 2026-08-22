@@ -45,3 +45,11 @@ class JobStatusResponse(BaseModel):
     progress: float | None = None
 
     model_config = {"from_attributes": True}
+
+
+class RawGenerateAcceptedResponse(BaseModel):
+    """Returned immediately by POST /internal/raw-generate."""
+
+    job_id: uuid.UUID
+    status: JobStatus
+    queue_position_hint: str = "admin-priority"

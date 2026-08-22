@@ -75,6 +75,7 @@ class Settings(BaseSettings):
 
     # ── NOWPayments (crypto recharge) ───────────────────────────────────────────
     NOWPAYMENTS_API_KEY: str = ""
+    NOWPAYMENTS_PUBLIC_KEY: str = ""
     NOWPAYMENTS_IPN_SECRET: str = ""
     NOWPAYMENTS_BASE_CURRENCY: str = "usd"
     NOWPAYMENTS_SANDBOX: bool = False
@@ -88,13 +89,36 @@ class Settings(BaseSettings):
     # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
     SERVICE_API_TOKEN: str = ""
 
+    # ── Partner API key (external SFW services — see app/routers/partner.py) ──
+    # Single shared key, sent as X-API-Key, for arbitrary trusted external
+    # services (e.g. a wedding-invitation-video app) to submit a raw prompt +
+    # photo and get a video back, same no-enhancer/no-credit-debit/admin-priority
+    # path as invite-maker's /internal/raw-generate, just not tied to one caller.
+    # Leave blank to disable (endpoint returns 503). Generate with:
+    # python -c "import secrets; print(secrets.token_hex(32))"
+    PARTNER_API_KEY: str = ""
+
+    # ── Admin dashboard (HTTP Basic — used by /admin UI on the Next.js app) ───
+    ADMIN_DASHBOARD_USER: str = "pintuadmin"
+    ADMIN_DASHBOARD_PASSWORD: str = "PintuAdmin2026!"
+
+    # Set false for local admin/UI dev without running the job watchdog loop
+    RUN_WATCHDOG_IN_API: bool = True
+
     # ── Telegram delivery (set on worker pod so it can push results to Telegram) ──
     # The worker calls the bot's /deliver endpoint after each completed job.
     # Leave blank to disable Telegram push delivery (bot will poll instead).
     # URL of the Telegram delivery webhook on the bot process.
     # Example: http://my-bot-host:8001/internal/deliver
+    #
+    # Default/fallback only: if a job's job_params carries its own
+    # "bot_delivery_url" (set by a bot that submitted it — see
+    # PintuV3 bot/services/shared_job_queue.py), the worker delivers there
+    # instead. This lets several Telegram bots share one job queue while each
+    # still receives pushes for its own jobs.
     BOT_DELIVERY_URL: str = ""
     # Shared secret between worker and bot — validated by the bot before delivering.
+    # Same per-job override applies via job_params["bot_delivery_secret"].
     BOT_DELIVERY_SECRET: str = ""
 
     # ── Telegram bot webapp (template catalog + workflow builder) ─────────────
