@@ -3,7 +3,8 @@
 NOTE: as of the "gradual transition" rewrite, the enhancer no longer uses
 SCENE_CHANGE_TRIGGER / abrupt jumpcuts (kept below only so nothing else that
 still imports it breaks) — see PintuV3 bot/templates/admin_registry.py for
-the validated gradual (0-3s phase-in / 3-5s action) style this now mirrors.
+the validated gradual (0-2.5s phase-in / 2.5-4s action, or continuous 0-4s
+for no-scene-change actions) style this now mirrors.
 """
 
 SCENE_CHANGE_TRIGGER = "The screen changes to show the new scene."

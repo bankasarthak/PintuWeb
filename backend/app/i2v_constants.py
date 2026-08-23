@@ -7,8 +7,8 @@ SCENE_CHANGE_LOW = "scene_change_nsfw_v1.0_low_noise.safetensors"
 SLAP_HIGH = "wan_2.2_i2v_slap_high_v2.0.safetensors"
 SLAP_LOW = "wan_2.2_i2v_slap_low_v2.0.safetensors"
 
-DEFAULT_FPS = 14
-DEFAULT_NUM_FRAMES = 85
+DEFAULT_FPS = 24
+DEFAULT_NUM_FRAMES = 105
 
 I2V_CUSTOM_NEGATIVE = (
     "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，"
