@@ -22,7 +22,10 @@ I2V_CUSTOM_NEGATIVE = (
     "fused fingers, poorly drawn face, deformed, disfigured, malformed limbs, "
     "wrong physics, unnatural motion, rubbery skin, plastic skin, morphing body, melting face, body warp, "
     "bad video quality, soft focus, compressed video, muddy details, washed out, temporal flicker, ghosting, "
-    "motion smear, motion blur, shaky warp, identity drift, face morph, fused bodies, merged limbs"
+    "motion smear, motion blur, shaky warp, identity drift, face morph, fused bodies, merged limbs, "
+    "fast motion, rushed motion, sped up, shaking in place, vibrating without displacement, "
+    "jittery motion, juddering, micro-shake, stationary tremor, twitching in place, "
+    "oscillating without moving, motion glitch, stuttering motion, frozen in place with tremor"
 )
 
 INPUT_IMAGE_PLACEHOLDER = "__PINTU_INPUT__"
