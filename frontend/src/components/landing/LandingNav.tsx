@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { motion, useMotionValueEvent, useScroll } from 'framer-motion'
-import { Menu, Sparkles, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Templates', href: '#pillars' },
@@ -37,10 +38,8 @@ export function LandingNav() {
         style={{ height: scrolled ? 60 : 76 }}
       >
         <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff2f87] to-[#ff8ac2] shadow-lg shadow-[#ff2f87]/25">
-            <Sparkles className="h-4 w-4 text-[#07070b]" />
-          </div>
-          <span className="font-display text-lg font-bold text-white">soFilthy</span>
+          <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl shadow-lg shadow-[#ff2f87]/25" />
+          <span className="font-display text-lg font-bold text-white">JerkBox</span>
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">

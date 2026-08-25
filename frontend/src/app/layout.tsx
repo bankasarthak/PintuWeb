@@ -1,32 +1,37 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Manrope, Syne } from 'next/font/google'
 import './globals.css'
 import { ReactQueryProvider } from '@/lib/query-client'
 import { ToastContainer } from '@/components/ui/toast'
 
-const playfair = Playfair_Display({
+const syne = Syne({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-display',
+  weight: ['700', '800'],
 })
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
 })
 
 export const metadata: Metadata = {
-  title: 'Pintu – Your AI Companion',
-  description: 'Real conversations. Explicit photos. Cinematic videos. Your AI companion awaits.',
-  keywords: ['AI companion', 'AI chat', 'AI girlfriend', 'AI photos'],
+  title: 'JerkBox - Animate Any Photo Into Explicit AI Video',
+  description: 'Upload one photo. Pick a template, direct your own scene, or write the script - JerkBox animates it into an explicit, cinematic video in under a minute.',
+  keywords: ['AI video generator', 'photo to video AI', 'AI NSFW video', 'AI companion'],
   robots: { index: false, follow: false },
+  icons: {
+    icon: '/favicon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
-      <body className="bg-[#0a0a0f] text-white antialiased min-h-screen">
+    <html lang="en" className={`${manrope.variable} ${syne.variable}`} suppressHydrationWarning>
+      <body className="bg-[#07070b] text-white antialiased min-h-screen">
         <ReactQueryProvider>
           {children}
           <ToastContainer />

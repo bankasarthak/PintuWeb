@@ -8,7 +8,7 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md animate-in">
       <CardHeader>
-        <CardTitle className="text-2xl text-center font-display">Welcome to Pintu</CardTitle>
+        <CardTitle className="text-2xl text-center font-display">Welcome to JerkBox</CardTitle>
         <CardDescription className="text-center">
           Sign in with Google or Telegram to continue
         </CardDescription>
@@ -17,14 +17,14 @@ export default function LoginPage() {
         <GoogleSignInButton />
 
         <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#1e1e2e]" />
-          <span className="text-xs text-[#64748b] uppercase tracking-wider">or</span>
-          <div className="h-px flex-1 bg-[#1e1e2e]" />
+          <div className="h-px flex-1 bg-white/[0.08]" />
+          <span className="text-xs text-[#8b8fa8] uppercase tracking-wider">or</span>
+          <div className="h-px flex-1 bg-white/[0.08]" />
         </div>
 
         <TelegramLoginButton />
 
-        <p className="text-xs text-[#94a3b8] text-center mt-2 leading-relaxed">
+        <p className="text-xs text-[#8b8fa8] text-center mt-2 leading-relaxed">
           By continuing, you confirm you are 18 or older and agree to our terms of service.
         </p>
       </CardContent>

@@ -258,7 +258,7 @@ export function Hero() {
           <Reveal delay={0.12}>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#8b8fa8]">
               Upload one photo. Pick a template, direct your own scene, or write the script yourself.
-              soFilthy animates it into an explicit, cinematic video in under 3 minutes.
+              JerkBox animates it into an explicit, cinematic video in under 3 minutes.
             </p>
           </Reveal>
 

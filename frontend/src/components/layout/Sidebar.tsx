@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Video, Users, MessageCircle, Coins, LogOut, ChevronLeft, Sparkles, Images } from 'lucide-react'
+import { Video, Users, MessageCircle, Coins, LogOut, ChevronLeft, Images } from 'lucide-react'
 import { cn, formatCredits } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -34,17 +35,13 @@ export function Sidebar() {
       <div className="flex items-center justify-between h-16 px-4 border-b border-white/[0.08]">
         {sidebarOpen && (
           <Link href="/video" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#c9a96e] to-[#e8d5b5] flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-[#07070b]" />
-            </div>
-            <span className="text-lg font-bold text-white font-display">Pintu</span>
+            <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl" />
+            <span className="text-lg font-bold text-white font-display">JerkBox</span>
           </Link>
         )}
         {!sidebarOpen && (
           <Link href="/video" className="mx-auto">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#c9a96e] to-[#e8d5b5] flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-[#07070b]" />
-            </div>
+            <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl" />
           </Link>
         )}
         <button
@@ -68,9 +65,9 @@ export function Sidebar() {
               href={href}
               className={cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a96e]/40',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff2f87]/40',
                 isActive
-                  ? 'bg-[#c9a96e]/10 text-[#e8d5b5] border border-[#c9a96e]/25'
+                  ? 'bg-[#ff2f87]/10 text-[#ff8ac2] border border-[#ff2f87]/25'
                   : 'text-[#8b8fa8] hover:bg-white/[0.04] hover:text-white',
                 !sidebarOpen && 'justify-center px-0'
               )}

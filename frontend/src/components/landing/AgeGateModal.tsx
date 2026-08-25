@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ShieldAlert } from 'lucide-react'
 
-const GATE_KEY = 'sofilthy-age-gate-v1'
+const GATE_KEY = 'jerkbox-age-gate-v1'
 
 export function AgeGateModal() {
   const [visible, setVisible] = useState(false)

@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PintuWeb frontend (Next.js) systemd service
+#
+# Install:
+#   sudo cp deploy/pintuweb-frontend.service /etc/systemd/system/pintuweb-frontend.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable pintuweb-frontend
+#   sudo systemctl start pintuweb-frontend
+#
+# Requires: npm ci && npm run build already run once in frontend/ (also done
+# by deploy-web.sh on every deploy). Env vars (NEXT_PUBLIC_*, BACKEND_INTERNAL_URL,
+# etc.) live in frontend/.env.production.local on the server — never committed.
+#
+# Logs:
+#   sudo journalctl -u pintuweb-frontend -f
+# ─────────────────────────────────────────────────────────────────────────────
+[Unit]
+Description=PintuWeb Frontend (Next.js)
+After=network-online.target pintuweb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/PintuWeb/frontend
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/home/ec2-user/PintuWeb/frontend/node_modules/.bin/next start -p 3000 -H 0.0.0.0
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pintuweb-frontend
+
+[Install]
+WantedBy=multi-user.target
