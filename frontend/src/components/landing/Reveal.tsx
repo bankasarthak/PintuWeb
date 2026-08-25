@@ -35,10 +35,12 @@ export function Reveal({
 /** Animates an integer count up from 0 to `value` once it scrolls into view. */
 export function CountUp({
   value,
+  prefix = '',
   suffix = '',
   className,
 }: {
   value: number
+  prefix?: string
   suffix?: string
   className?: string
 }) {
@@ -80,6 +82,7 @@ export function CountUp({
 
   return (
     <span ref={ref} className={className}>
+      {prefix}
       {display}
       {suffix}
     </span>
