@@ -37,7 +37,7 @@ export function AppHeader({
               {subtitle && <p className="text-xs text-[#8b8fa8] truncate mt-0.5">{subtitle}</p>}
             </>
           ) : (
-            <Link href="/video" className="font-display text-lg font-semibold tracking-tight text-white">
+            <Link href="/video/templates" className="font-display text-lg font-semibold tracking-tight text-white">
               JerkBox
             </Link>
           )}

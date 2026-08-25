@@ -64,7 +64,7 @@ export function useGoogleLogin() {
     onSuccess: (user) => {
       setUser(user)
       queryClient.setQueryData(['me'], user)
-      router.push('/video')
+      router.push('/video/templates')
     },
     onError: (err) => {
       toastError('Google sign-in failed', getApiErrorMessage(err))
@@ -88,7 +88,7 @@ export function useTelegramLogin() {
     onSuccess: (user) => {
       setUser(user)
       queryClient.setQueryData(['me'], user)
-      router.push('/video')
+      router.push('/video/templates')
     },
     onError: (err) => {
       toastError('Telegram sign-in failed', getApiErrorMessage(err))

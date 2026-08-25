@@ -35,9 +35,9 @@ export function LandingNav() {
         className="mx-auto flex max-w-7xl items-center justify-between px-4 transition-all duration-300 sm:px-6"
         style={{ height: scrolled ? 60 : 76 }}
       >
-        <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl shadow-lg shadow-[#ff2f87]/25" />
-          <span className="font-display text-lg font-bold text-white">JerkBox</span>
+        <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
+          <Image src="/logo-icon.png" alt="JerkBox" width={48} height={48} className="h-11 w-11 rounded-xl shadow-lg shadow-[#ff2f87]/25" />
+          <span className="font-display text-xl font-bold text-white">JerkBox</span>
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">

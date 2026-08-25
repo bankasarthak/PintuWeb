@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Video, Users, MessageCircle, Coins, LogOut, ChevronLeft, Images } from 'lucide-react'
+import { LayoutGrid, BookOpen, Video, Wand2, Coins, LogOut, ChevronLeft, Images } from 'lucide-react'
 import { cn, formatCredits } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -12,10 +12,11 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
 const navItems = [
-  { href: '/video',      label: 'Video',       icon: Video },
-  { href: '/characters', label: 'Characters',  icon: Users },
-  { href: '/chat',       label: 'Chat',        icon: MessageCircle },
-  { href: '/gallery',    label: 'Gallery',     icon: Images },
+  { href: '/video/templates', label: 'Templates',    icon: LayoutGrid },
+  { href: '/video/story',     label: 'Story Mode',    icon: BookOpen },
+  { href: '/video/scene',     label: 'Direct Scene',  icon: Video },
+  { href: '/video/custom',    label: 'Custom Prompt', icon: Wand2 },
+  { href: '/gallery',         label: 'Gallery',       icon: Images },
 ]
 
 export function Sidebar() {
@@ -34,14 +35,14 @@ export function Sidebar() {
     >
       <div className="flex items-center justify-between h-16 px-4 border-b border-white/[0.08]">
         {sidebarOpen && (
-          <Link href="/video" className="flex items-center gap-2">
-            <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl" />
+          <Link href="/video/templates" className="flex items-center gap-2.5">
+            <Image src="/logo-icon.png" alt="JerkBox" width={44} height={44} className="h-10 w-10 rounded-xl" />
             <span className="text-lg font-bold text-white font-display">JerkBox</span>
           </Link>
         )}
         {!sidebarOpen && (
-          <Link href="/video" className="mx-auto">
-            <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl" />
+          <Link href="/video/templates" className="mx-auto">
+            <Image src="/logo-icon.png" alt="JerkBox" width={40} height={40} className="h-9 w-9 rounded-xl" />
           </Link>
         )}
         <button

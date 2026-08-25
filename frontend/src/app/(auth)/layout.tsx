@@ -7,9 +7,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <AuthProviders>
       <div className="min-h-screen bg-[#07070b] flex flex-col">
         <header className="p-6">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl" />
-            <span className="text-lg font-bold text-white font-display">JerkBox</span>
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <Image src="/logo-icon.png" alt="JerkBox" width={44} height={44} className="h-10 w-10 rounded-xl" />
+            <span className="text-xl font-bold text-white font-display">JerkBox</span>
           </Link>
         </header>
 

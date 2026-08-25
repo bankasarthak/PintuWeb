@@ -7,9 +7,9 @@ export function LandingFooter() {
     <footer className="border-t border-white/[0.06] px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-          <Link href="/" className="flex items-center gap-2 cursor-pointer">
-            <Image src="/logo-icon.png" alt="JerkBox" width={32} height={32} className="h-8 w-8 rounded-xl" />
-            <span className="font-display text-lg font-bold text-white">JerkBox</span>
+          <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
+            <Image src="/logo-icon.png" alt="JerkBox" width={48} height={48} className="h-11 w-11 rounded-xl" />
+            <span className="font-display text-xl font-bold text-white">JerkBox</span>
           </Link>
 
           <div className="flex items-center gap-6 text-sm text-[#8b8fa8]">
