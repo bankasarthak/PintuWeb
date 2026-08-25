@@ -78,10 +78,16 @@ function categoryLabel(tags: string[] | undefined): string {
 }
 
 function TemplateTickerCard({ template }: { template: TemplateItem }) {
+  const [hovered, setHovered] = useState(false)
   const sourceUrl = templateExampleUrl(template.id, 'source.jpg', template.example_v)
+  const previewUrl = templateExampleUrl(template.id, 'preview.mp4', template.example_v)
 
   return (
-    <div className="group relative flex h-48 w-36 flex-shrink-0 cursor-pointer flex-col justify-end overflow-hidden rounded-2xl border border-white/[0.08] bg-[#12121a] p-3 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#ff2f87]/40">
+    <div
+      className="group relative flex h-48 w-36 flex-shrink-0 cursor-pointer flex-col justify-end overflow-hidden rounded-2xl border border-white/[0.08] bg-[#12121a] p-3 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#ff2f87]/40"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={sourceUrl}
@@ -89,10 +95,18 @@ function TemplateTickerCard({ template }: { template: TemplateItem }) {
         loading="lazy"
         className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
       />
+      {hovered && (
+        <video
+          src={previewUrl}
+          className="absolute inset-0 h-full w-full object-cover object-top"
+          muted
+          autoPlay
+          playsInline
+          loop
+          preload="metadata"
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/10" />
-      <span className="absolute right-2 top-2 rounded-full border border-red-700/40 bg-red-900/40 px-1.5 py-0.5 text-[9px] font-bold text-red-300 backdrop-blur-sm">
-        18+
-      </span>
       <div className="relative z-10">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-[#ff8ac2]/80">
           {categoryLabel(template.tags)}
