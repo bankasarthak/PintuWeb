@@ -10,9 +10,11 @@ Lifecycle per job:
   On success: output fetched from ComfyUI, uploaded to R2.
   After every job: delete ComfyUI input/ + output files only.
   Models stay loaded — never call /free or unload GGUF weights.
-  Exception: on a job timeout we call /interrupt to kill the stuck
-  execution immediately, so it can't keep burning GPU/VRAM in the
-  background and degrade every job queued behind it.
+  Exception: on a job timeout we call /interrupt then fully restart the
+  local ComfyUI process (via supervisorctl) — /interrupt alone stops the
+  runaway execution but leaks the VRAM it had allocated, which compounds
+  into slower/stalled jobs over time. A full restart reclaims that VRAM
+  immediately so the pod self-heals without manual intervention.
 
 Run with:
   POD_ID=i2v-pod-1 python -m worker
@@ -41,6 +43,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.job import Job, JobStatus, JobType
 from app.services.credit_service import CreditService
+from app.services.referral_service import maybe_reward_referral_for_first_generation
 from app.services.storage_client import StorageClient
 from app.services.watermark import apply_image_watermark, apply_video_watermark
 
@@ -237,6 +240,51 @@ async def _interrupt_comfyui(
         )
 
 
+async def _restart_comfyui(
+    session: aiohttp.ClientSession, pod_url: str, job_id: uuid.UUID
+) -> None:
+    """Fully restart the local ComfyUI process after a job timeout.
+
+    /interrupt alone stops execution but does NOT release the VRAM a stuck
+    prompt had allocated — that memory stays "leaked" until the process is
+    restarted. Left alone, each timeout leaves the pod with less free VRAM
+    than before, which makes the *next* job more likely to partially-offload
+    (slower) or stall outright — a compounding fragmentation spiral that
+    used to require a manual SSH restart to break.
+
+    We restart via supervisorctl (this worker always runs colocated with
+    ComfyUI on the same pod) and then poll /system_stats until ComfyUI is
+    responsive again before letting the worker claim the next job.
+    """
+    logger.warning("Restarting ComfyUI to reclaim leaked VRAM after job %s timeout", job_id)
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "supervisorctl", "restart", "comfyui",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+        logger.info("supervisorctl restart comfyui: %s", stdout.decode(errors="replace").strip())
+    except Exception:
+        logger.warning("Failed to run supervisorctl restart comfyui (non-fatal)", exc_info=True)
+        return
+
+    # Wait for ComfyUI to come back up before returning control to the caller.
+    deadline = asyncio.get_event_loop().time() + 60
+    while asyncio.get_event_loop().time() < deadline:
+        await asyncio.sleep(3)
+        try:
+            async with session.get(
+                f"{pod_url}/system_stats", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    logger.info("ComfyUI back up after restart (job %s)", job_id)
+                    return
+        except Exception:
+            continue
+    logger.warning("ComfyUI did not come back up within 60s of restart (job %s)", job_id)
+
+
 async def _fetch_output_bytes(
     session: aiohttp.ClientSession, pod_url: str, outputs: dict
 ) -> tuple[bytes, str] | None:
@@ -414,6 +462,7 @@ async def process_job(job: Job) -> None:
                 logger.error("Job %s timed out or shutdown during poll", job.id)
                 if not _shutdown.is_set():
                     await _interrupt_comfyui(http, pod_url, job.id)
+                    await _restart_comfyui(http, pod_url, job.id)
                 await _timeout_job(job)
                 return
 
@@ -452,6 +501,13 @@ async def process_job(job: Job) -> None:
                 job_row.delivered_at = datetime.now(timezone.utc)
                 job_params_snapshot = dict(job_row.job_params or {})
                 await db.commit()
+
+                try:
+                    await maybe_reward_referral_for_first_generation(db, job.user_id)
+                    await db.commit()
+                except Exception:
+                    logger.exception("Referral reward check failed for job %s (non-fatal)", job.id)
+                    await db.rollback()
 
             logger.info("Job %s completed — output at %s", job.id, output_key)
 
