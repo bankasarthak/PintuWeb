@@ -43,6 +43,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.job import Job, JobStatus, JobType
 from app.services.credit_service import CreditService
+from app.services.raw_generate_service import RAW_GENERATE_ENTRY_POINT
 from app.services.storage_client import StorageClient
 from app.services.watermark import apply_image_watermark, apply_video_watermark
 
@@ -55,8 +56,19 @@ logger = logging.getLogger("worker")
 INPUT_IMAGE_PLACEHOLDER = "__PINTU_INPUT__"
 _VIDEO_JOB_TYPES = {JobType.i2v, JobType.i2v_custom}
 
+# entry_point values whose outputs should never get the "PintuUndressBot"
+# watermark burned in — either because they ship under a different brand
+# entirely (jerkbox = candyland.krewbay.in) or aren't Telegram-bot content
+# at all (invite-maker).
+_NO_WATERMARK_ENTRY_POINTS = {RAW_GENERATE_ENTRY_POINT, "jerkbox"}
+
 # Graceful shutdown flag
 _shutdown = asyncio.Event()
+
+# Counts jobs processed since ComfyUI was last restarted (by either the
+# timeout path or the periodic proactive path below). Reset to 0 whenever
+# a restart happens. See _restart_comfyui / _maybe_proactive_restart.
+_jobs_since_restart = 0
 
 
 def _handle_signal(sig: int, _frame: object) -> None:
@@ -268,6 +280,9 @@ async def _restart_comfyui(
         logger.warning("Failed to run supervisorctl restart comfyui (non-fatal)", exc_info=True)
         return
 
+    global _jobs_since_restart
+    _jobs_since_restart = 0
+
     # Wait for ComfyUI to come back up before returning control to the caller.
     deadline = asyncio.get_event_loop().time() + 60
     while asyncio.get_event_loop().time() < deadline:
@@ -282,6 +297,38 @@ async def _restart_comfyui(
         except Exception:
             continue
     logger.warning("ComfyUI did not come back up within 60s of restart (job %s)", job_id)
+
+
+async def _maybe_proactive_restart() -> None:
+    """Restart ComfyUI every COMFYUI_RESTART_EVERY_N_JOBS jobs, even when
+    nothing has timed out.
+
+    VRAM fragmentation ("loaded partially ... N MB offloaded" in ComfyUI's
+    logs) builds up gradually on ordinary *successful* jobs too — not just
+    on stalls/timeouts. Left alone, per-job generation time climbs steadily
+    (observed: ~150s right after a restart -> 300s+ within ~10 jobs) even
+    though every job still finishes inside the timeout window, so the
+    timeout-triggered restart in _restart_comfyui never fires to catch it.
+    This proactive restart keeps generations consistently fast instead of
+    only reacting after things have already gotten slow.
+
+    Called between jobs (main loop only) — never while a job is in flight.
+    """
+    global _jobs_since_restart
+    threshold = settings.COMFYUI_RESTART_EVERY_N_JOBS
+    if threshold <= 0 or _jobs_since_restart < threshold:
+        return
+
+    pod_url = _pod_url()
+    if not pod_url:
+        return
+
+    logger.info(
+        "Proactively restarting ComfyUI after %d jobs (threshold=%d) to prevent VRAM fragmentation",
+        _jobs_since_restart, threshold,
+    )
+    async with aiohttp.ClientSession() as http:
+        await _restart_comfyui(http, pod_url, uuid.UUID(int=0))
 
 
 async def _fetch_output_bytes(
@@ -465,6 +512,9 @@ async def process_job(job: Job) -> None:
                 await _timeout_job(job)
                 return
 
+            global _jobs_since_restart
+            _jobs_since_restart += 1
+
             # ── Download output and upload to R2 ──────────────────────────────────
             result = await _fetch_output_bytes(http, pod_url, comfyui_outputs)
             if result is None:
@@ -476,11 +526,19 @@ async def process_job(job: Job) -> None:
             is_video = job.job_type in _VIDEO_JOB_TYPES
             suffix = ".mp4" if is_video else ".jpg"
 
-            output_bytes = (
-                await apply_video_watermark(output_bytes)
-                if is_video
-                else await apply_image_watermark(output_bytes)
-            )
+            if job.entry_point in _NO_WATERMARK_ENTRY_POINTS:
+                # invite-maker (wizard + raw Prompt Playground) ships under
+                # Pintu's own "Invite Maker" brand, not the Telegram bot, and
+                # other bot brands (e.g. JerkBox / candyland.krewbay.in) have
+                # their own identity too — skip the "PintuUndressBot" watermark
+                # for these jobs.
+                logger.info("Skipping watermark for job %s (entry_point=%s)", job.id, job.entry_point)
+            else:
+                output_bytes = (
+                    await apply_video_watermark(output_bytes)
+                    if is_video
+                    else await apply_image_watermark(output_bytes)
+                )
 
             try:
                 output_key = await storage.upload(
@@ -660,8 +718,14 @@ async def run_worker() -> None:
     logger.info("R2 enabled: %s (bucket=%s)", settings.r2_enabled, settings.R2_BUCKET)
     logger.info("Telegram delivery URL: %s", settings.BOT_DELIVERY_URL or "(disabled)")
     logger.info("Database URL: %s", settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").split("@")[-1] if "@" in settings.DATABASE_URL else settings.DATABASE_URL)
+    logger.info("ComfyUI proactive restart: every %d jobs", settings.COMFYUI_RESTART_EVERY_N_JOBS)
     logger.info("=" * 60)
     while not _shutdown.is_set():
+        try:
+            await _maybe_proactive_restart()
+        except Exception:
+            logger.exception("Proactive ComfyUI restart check failed (non-fatal)")
+
         async with AsyncSessionLocal() as db:
             job = await claim_next_job(db)
 

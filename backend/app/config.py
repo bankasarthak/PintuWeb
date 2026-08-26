@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     POD_ID: str = "local"
     # Types of jobs this worker handles (comma-sep string or JSON list)
     WORKER_JOB_TYPES: list[str] = ["i2i", "i2v", "i2i_custom", "i2v_custom", "random_ai"]
+    # Proactively restart ComfyUI every N completed jobs to clear VRAM
+    # fragmentation before it slows generations down (0 disables this).
+    COMFYUI_RESTART_EVERY_N_JOBS: int = 4
 
     # ── Razorpay (UPI recharge) ───────────────────────────────────────────────
     RAZORPAY_KEY_ID: str = ""
