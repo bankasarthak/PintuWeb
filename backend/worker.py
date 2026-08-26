@@ -43,7 +43,6 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.job import Job, JobStatus, JobType
 from app.services.credit_service import CreditService
-from app.services.referral_service import maybe_reward_referral_for_first_generation
 from app.services.storage_client import StorageClient
 from app.services.watermark import apply_image_watermark, apply_video_watermark
 
@@ -501,13 +500,6 @@ async def process_job(job: Job) -> None:
                 job_row.delivered_at = datetime.now(timezone.utc)
                 job_params_snapshot = dict(job_row.job_params or {})
                 await db.commit()
-
-                try:
-                    await maybe_reward_referral_for_first_generation(db, job.user_id)
-                    await db.commit()
-                except Exception:
-                    logger.exception("Referral reward check failed for job %s (non-fatal)", job.id)
-                    await db.rollback()
 
             logger.info("Job %s completed — output at %s", job.id, output_key)
 
