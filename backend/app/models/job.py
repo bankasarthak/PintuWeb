@@ -29,6 +29,7 @@ class JobType(str, enum.Enum):
     i2i_custom = "i2i_custom"
     i2v_custom = "i2v_custom"
     random_ai = "random_ai"
+    i2i_kontext = "i2i_kontext"  # Flux Kontext dev + Nudify LoRA — true I2I, own pod worker
 
 
 class Job(Base):
