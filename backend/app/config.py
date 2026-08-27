@@ -65,7 +65,11 @@ class Settings(BaseSettings):
     WORKER_JOB_TYPES: list[str] = ["i2i", "i2v", "i2i_custom", "i2v_custom", "random_ai"]
     # Proactively restart ComfyUI every N completed jobs to clear VRAM
     # fragmentation before it slows generations down (0 disables this).
-    COMFYUI_RESTART_EVERY_N_JOBS: int = 4
+    # Was 4, but production data (Aug 27) showed per-job time already climbing
+    # 2.5min -> 4-5min within a single 4-job window, and later windows never
+    # recovering back to baseline after restart — tightened to 2 to restart
+    # before fragmentation has a chance to compound.
+    COMFYUI_RESTART_EVERY_N_JOBS: int = 2
 
     # ── Razorpay (UPI recharge) ───────────────────────────────────────────────
     RAZORPAY_KEY_ID: str = ""
